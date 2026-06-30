@@ -1,0 +1,1588 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prof. Sprout's Greenhouse</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0f1a12;
+    --bg2:       #182a1c;
+    --bg3:       #2a3a2e;
+    --accent:    #4a7c59;
+    --accent2:   #3d6649;
+    --text:      #e8e0d0;
+    --text2:     #9aaa9a;
+    --warn:      #c9743a;
+    --border:    #2e3f32;
+    --cell-w:    38px;
+    --plant-col: 140px;
+    --row-h:     44px;
+    --zebra-col: rgba(255,255,255,0.028);
+    --zebra-row: rgba(255,255,255,0.022);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+    overscroll-behavior: none;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 14px 0;
+  }
+
+  .header-top {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .app-name {
+    font-size: 15px; font-weight: 600; letter-spacing: 0.02em;
+    color: var(--text); opacity: 0.85;
+  }
+
+  .month-nav { display: flex; align-items: center; gap: 4px; }
+  .month-nav button {
+    background: none; border: none; color: var(--text2);
+    cursor: pointer; padding: 4px 6px; border-radius: 4px;
+    font-size: 16px; line-height: 1; transition: color 0.15s;
+  }
+  .month-nav button:hover { color: var(--text); }
+
+  .month-label-btn {
+    background: none; border: none; color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; font-weight: 500;
+    min-width: 110px; text-align: center;
+    cursor: pointer; padding: 4px 8px; border-radius: 6px;
+    transition: background 0.15s;
+  }
+  .month-label-btn:hover { background: var(--bg3); }
+
+  .filters {
+    display: flex; gap: 6px; overflow-x: auto;
+    padding-bottom: 8px; scrollbar-width: none;
+  }
+  .filters::-webkit-scrollbar { display: none; }
+
+  .filter-btn {
+    flex-shrink: 0;
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text2); border-radius: 20px;
+    padding: 4px 10px; font-size: 12px; cursor: pointer;
+    transition: all 0.15s; white-space: nowrap;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .filter-btn.active, .filter-btn:hover {
+    background: var(--accent2); border-color: var(--accent); color: var(--text);
+  }
+
+  /* ── DATE PICKER ── */
+  .date-picker {
+    position: fixed; right: 14px; top: 90px;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; z-index: 500; width: 240px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5); padding: 12px;
+  }
+  .date-picker-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .date-picker-header button {
+    background: none; border: none; color: var(--text2);
+    cursor: pointer; font-size: 18px; padding: 2px 8px;
+    border-radius: 4px; transition: color 0.15s;
+  }
+  .date-picker-header button:hover { color: var(--text); }
+  #dp-year-label { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 500; color: var(--text); }
+  .date-picker-months { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+  .dp-month-btn {
+    background: none; border: 1px solid transparent;
+    color: var(--text2); border-radius: 6px; padding: 6px 4px;
+    font-size: 12px; cursor: pointer; text-align: center;
+    font-family: 'Space Grotesk', sans-serif; transition: all 0.1s;
+  }
+  .dp-month-btn:hover { background: var(--bg3); color: var(--text); }
+  .dp-month-btn.current { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .dp-month-btn.future { opacity: 0.3; cursor: default; }
+
+  /* ── TABLE WRAPPER ── */
+  .table-container {
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin; scrollbar-color: var(--bg3) transparent;
+  }
+  .table-container::-webkit-scrollbar { height: 4px; }
+  .table-container::-webkit-scrollbar-track { background: transparent; }
+  .table-container::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 2px; }
+
+  table { border-collapse: collapse; table-layout: fixed; min-width: max-content; }
+
+  /* ── HEADER ROW (days) ── */
+  thead th {
+    position: sticky; top: 0; background: var(--bg);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--text2); font-weight: 400;
+    text-align: center; width: var(--cell-w);
+    padding: 8px 2px 6px; border-bottom: 1px solid var(--border);
+  }
+  thead th.plant-col-head {
+    width: var(--plant-col); text-align: left; padding-left: 14px;
+    position: sticky; left: 0; z-index: 20; background: var(--bg);
+  }
+  thead th.today-head { color: var(--accent); font-weight: 500; }
+  thead th.future-head { opacity: 0.3; }
+  thead th.col-zebra { background: color-mix(in srgb, var(--bg) 100%, white 3%); }
+
+  /* ── GROUP HEADER ROW ── */
+  tr.group-header-row td {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    border-right: none;
+    padding: 0;
+    cursor: pointer;
+    height: 34px;
+  }
+  tr.group-header-row td.group-name-cell {
+    position: sticky; left: 0; z-index: 10;
+    background: var(--bg2);
+    border-right: 2px solid var(--border);
+    padding: 0 10px 0 10px;
+  }
+  .group-label {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--text2);
+  }
+  .group-toggle-icon { font-size: 10px; transition: transform 0.2s; }
+  .group-toggle-icon.open { transform: rotate(90deg); }
+  .group-color-bar { width: 3px; height: 16px; border-radius: 2px; flex-shrink: 0; }
+  tr.group-header-row:hover td { background: var(--bg3); }
+  tr.group-header-row:hover td.group-name-cell { background: var(--bg3); }
+
+  /* ── PLANT ROWS ── */
+  tbody tr.plant-row { height: var(--row-h); }
+  tbody tr.plant-row:hover td { background: rgba(74,124,89,0.06); }
+  tbody tr.plant-row:hover td.plant-name-cell { background: var(--bg); }
+  tbody tr.filtered-out { display: none; }
+  tbody tr.group-hidden { display: none; }
+
+  td {
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    text-align: center; vertical-align: middle;
+    cursor: pointer; width: var(--cell-w);
+    position: relative; overflow: hidden;
+    user-select: none; -webkit-user-select: none;
+    transition: background 0.1s;
+  }
+  td:active { background: rgba(74,124,89,0.15); }
+
+  td.today-col { background: rgba(74,124,89,0.08); }
+  td.future-col { opacity: 0.35; cursor: default; }
+
+  /* zebra columns (5-banded) */
+  td.col-zebra { background: var(--zebra-col); }
+  td.col-zebra.today-col { background: rgba(74,124,89,0.11); }
+
+  /* zebra rows (3-banded, reset per group) */
+  tr.plant-row.row-zebra td { background: var(--zebra-row); }
+  tr.plant-row.row-zebra td.today-col { background: rgba(74,124,89,0.10); }
+  tr.plant-row.row-zebra:hover td { background: rgba(74,124,89,0.07); }
+  tr.plant-row.row-zebra:hover td.plant-name-cell { background: var(--bg); }
+
+  /* multi select */
+  tbody tr.multi-selected td { background: rgba(74,124,89,0.07); }
+  tbody tr.multi-selected td.plant-name-cell { background: rgba(74,124,89,0.15) !important; }
+
+  td.plant-name-cell {
+    position: sticky; left: 0; z-index: 10;
+    text-align: left; padding: 0 8px 0 14px;
+    cursor: default; background: var(--bg);
+    width: var(--plant-col); border-right: 2px solid var(--border);
+  }
+
+  .plant-label { display: flex; align-items: center; gap: 5px; overflow: hidden; }
+  .plant-name-text {
+    font-size: 13px; font-weight: 600;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  .cell-content {
+    font-size: 13px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    flex-wrap: wrap; gap: 1px;
+  }
+
+  /* ripple */
+  .ripple {
+    position: absolute; border-radius: 50%;
+    background: rgba(74,124,89,0.45); transform: scale(0);
+    animation: ripple-anim 0.35s ease-out forwards; pointer-events: none;
+  }
+  @keyframes ripple-anim { to { transform: scale(4); opacity: 0; } }
+
+  /* ── BOTTOM BAR ── */
+  .add-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--bg2); border-top: 1px solid var(--border);
+    padding: 10px 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    z-index: 100; gap: 8px;
+  }
+  .add-bar-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+
+  .multi-select-info {
+    display: none; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--text2); flex: 1;
+  }
+  .multi-select-info.visible { display: flex; }
+  .multi-count { font-family: 'JetBrains Mono', monospace; color: var(--accent); font-weight: 500; }
+
+  .btn-add-plant {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--accent2); border: 1px solid var(--accent);
+    color: var(--text); border-radius: 8px;
+    padding: 8px 14px; cursor: pointer; font-size: 13px; font-weight: 500;
+    font-family: 'Space Grotesk', sans-serif; transition: background 0.15s; flex-shrink: 0;
+  }
+  .btn-add-plant:hover { background: var(--accent); }
+
+  .btn-add-group {
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text2); border-radius: 8px;
+    padding: 8px 12px; cursor: pointer; font-size: 13px;
+    font-family: 'Space Grotesk', sans-serif; flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .btn-add-group:hover { color: var(--text); border-color: var(--accent2); }
+
+  .btn-cancel-multi {
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text2); border-radius: 8px;
+    padding: 8px 10px; cursor: pointer; font-size: 13px;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  /* ── MODALS / SHEETS ── */
+  .overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.65); z-index: 200;
+    align-items: flex-end; justify-content: center;
+  }
+  .overlay.open { display: flex; }
+
+  .sheet {
+    background: var(--bg2); border-radius: 14px 14px 0 0;
+    border-top: 1px solid var(--border); padding: 20px 16px 30px;
+    width: 100%; max-width: 480px; max-height: 80vh; overflow-y: auto;
+  }
+  .sheet-handle { width: 40px; height: 4px; border-radius: 2px; background: var(--bg3); margin: 0 auto 18px; }
+  .sheet h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: var(--text); }
+
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block; font-size: 12px; color: var(--text2);
+    margin-bottom: 5px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;
+  }
+  .field input[type="text"] {
+    width: 100%; background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px; padding: 9px 12px;
+    font-size: 14px; font-family: 'Space Grotesk', sans-serif;
+    outline: none; transition: border-color 0.15s;
+  }
+  .field input[type="text"]:focus { border-color: var(--accent); }
+  .field textarea {
+    width: 100%; background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px; padding: 9px 12px;
+    font-size: 14px; font-family: 'Space Grotesk', sans-serif;
+    outline: none; resize: none; line-height: 1.5; transition: border-color 0.15s;
+  }
+  .field textarea:focus { border-color: var(--accent); }
+
+  .field select {
+    width: 100%; background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px; padding: 9px 12px;
+    font-size: 14px; font-family: 'Space Grotesk', sans-serif;
+    outline: none; cursor: pointer; appearance: none;
+  }
+  .field select:focus { border-color: var(--accent); }
+
+  .color-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+  .color-swatch {
+    width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+    border: 2px solid transparent; transition: transform 0.1s, border-color 0.1s;
+  }
+  .color-swatch.selected { border-color: var(--text); transform: scale(1.15); }
+  .color-swatch.no-color {
+    background: var(--bg3) !important;
+    border: 2px dashed var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; color: var(--text2);
+  }
+
+  .sheet-actions { display: flex; gap: 8px; margin-top: 18px; }
+  .btn-primary {
+    flex: 1; background: var(--accent); border: none; color: var(--text);
+    border-radius: 8px; padding: 11px; cursor: pointer; font-size: 14px;
+    font-weight: 600; font-family: 'Space Grotesk', sans-serif; transition: background 0.15s;
+  }
+  .btn-primary:hover { background: #5a9c6f; }
+  .btn-secondary {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text2);
+    border-radius: 8px; padding: 11px 16px; cursor: pointer; font-size: 14px;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  /* ── ACTION MENU ── */
+  .action-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
+  .action-item {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 8px; text-align: center; cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .action-item:hover, .action-item.selected-action {
+    background: var(--accent2); border-color: var(--accent);
+  }
+  .action-item .emoji { font-size: 22px; }
+  .action-item .label { font-size: 11px; color: var(--text2); }
+  .note-section { margin-top: 12px; }
+
+  /* ── CONTEXT MENU ── */
+  .ctx-menu {
+    display: none; position: fixed;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 10px; z-index: 300; overflow: hidden; min-width: 160px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+  .ctx-menu.open { display: block; }
+  .ctx-item {
+    padding: 10px 14px; cursor: pointer; font-size: 13px;
+    color: var(--text2); display: flex; align-items: center; gap: 8px;
+    transition: background 0.1s;
+  }
+  .ctx-item:hover { background: var(--bg3); color: var(--text); }
+  .ctx-item.danger { color: var(--warn); }
+  .ctx-divider { height: 1px; background: var(--border); margin: 2px 0; }
+
+  /* ── NOTE POPUP ── */
+  .note-popup {
+    display: none; position: fixed;
+    background: var(--bg2); border: 1px solid var(--accent);
+    border-radius: 10px; padding: 12px 14px;
+    font-size: 13px; color: var(--text); line-height: 1.5;
+    z-index: 400; max-width: 260px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+  }
+  .note-popup.visible { display: block; }
+  .note-popup-label { font-size: 11px; color: var(--text2); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .note-popup-actions { display: flex; gap: 6px; margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px; }
+  .note-popup-actions button {
+    font-size: 11px; padding: 4px 8px; border-radius: 6px; cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif; border: 1px solid var(--border);
+    background: var(--bg3); color: var(--text2);
+  }
+  .note-popup-actions button:hover { color: var(--text); }
+  .note-popup-actions button.danger { color: var(--warn); }
+
+  /* ── EMPTY STATE ── */
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text2); }
+  .empty-state .big { font-size: 48px; margin-bottom: 16px; }
+  .empty-state p { font-size: 14px; line-height: 1.7; max-width: 260px; margin: 0 auto; }
+
+  .btn-group-assign {
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text2); border-radius: 8px;
+    padding: 8px 10px; cursor: pointer; font-size: 13px;
+    font-family: 'Space Grotesk', sans-serif; flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .btn-group-assign:hover { color: var(--text); border-color: var(--accent2); }
+
+  .assign-group-item {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .assign-group-item:hover { background: var(--accent2); border-color: var(--accent); }
+  .assign-group-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .assign-group-name { font-size: 14px; font-weight: 500; color: var(--text); }
+  .assign-group-count { font-size: 12px; color: var(--text2); margin-left: auto; }
+  .assign-ungroup-item {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--bg3); border: 1px dashed var(--border);
+    border-radius: 10px; padding: 12px 14px; cursor: pointer;
+    transition: background 0.15s; color: var(--text2); font-size: 13px;
+  }
+  .assign-ungroup-item:hover { background: var(--bg3); color: var(--text); }
+  .main-content { padding-bottom: 70px; }
+</style>
+</head>
+<body>
+<!-- Login Screen -->
+<div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;align-items:center;justify-content:center;">
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:32px 24px;width:300px;max-width:90vw;">
+    <div style="font-size:32px;text-align:center;margin-bottom:8px;">🌿</div>
+    <h2 style="text-align:center;font-size:18px;margin-bottom:4px;">Prof. Sprout's Greenhouse</h2>
+    <p style="text-align:center;font-size:12px;color:var(--text2);margin-bottom:24px;">Kullanıcı adı ve PIN ile giriş yap</p>
+    <div style="margin-bottom:12px;">
+      <label style="display:block;font-size:11px;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em;">Kullanıcı Adı</label>
+      <input id="login-username" type="text" placeholder="ör. green thumb" maxlength="20"
+        style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 12px;font-size:14px;font-family:'Space Grotesk',sans-serif;outline:none;">
+    </div>
+    <div style="margin-bottom:20px;">
+      <label style="display:block;font-size:11px;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em;">PIN (4 rakam)</label>
+      <div style="position:relative;">
+  <input id="login-pin" type="password" inputmode="numeric" placeholder="••••" maxlength="4"
+    style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 40px 9px 12px;font-size:18px;font-family:'JetBrains Mono',monospace;outline:none;letter-spacing:0.3em;">
+  <button id="pin-toggle" type="button"
+    style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text2);cursor:pointer;font-size:16px;padding:0;">👁</button>
+</div>
+    </div>
+    <div id="login-error" style="display:none;color:var(--warn);font-size:12px;margin-bottom:12px;text-align:center;"></div>
+    <button id="login-btn" style="width:100%;background:var(--accent);border:none;color:var(--text);border-radius:8px;padding:12px;font-size:14px;font-weight:600;font-family:'Space Grotesk',sans-serif;cursor:pointer;">
+      Giriş Yap / Kayıt Ol
+    </button>
+  </div>
+</div>
+<header>
+  <div class="header-top">
+    <span class="app-name" id="app-name">🌿 Prof. Sprout's Greenhouse</span>
+    <div class="month-nav">
+      <button id="prev-month">‹</button>
+      <button id="month-label" class="month-label-btn">—</button>
+      <button id="next-month">›</button>
+    </div>
+  </div>
+  <div id="date-picker" class="date-picker" style="display:none">
+    <div class="date-picker-header">
+      <button id="dp-prev-year">‹</button>
+      <span id="dp-year-label"></span>
+      <button id="dp-next-year">›</button>
+    </div>
+    <div class="date-picker-months" id="dp-months"></div>
+  </div>
+  <div class="filters">
+    <button class="filter-btn" data-filter="water-heavy">💧 Çok sulanan</button>
+    <button class="filter-btn" data-filter="water-light">🌵 Az sulanan</button>
+    <button class="filter-btn" data-filter="repotted">🔄 Saksı değişti</button>
+    <button class="filter-btn" data-filter="fertilized">🌱 Gübrelenmiş</button>
+    <button class="filter-btn" data-filter="all">Tümü</button>
+  </div>
+</header>
+
+<div class="main-content">
+  <div id="empty-state" class="empty-state" style="display:none">
+    <div class="big">🌱</div>
+    <p>Henüz bitki yok. Aşağıdaki + butonuna dokun ve ilk bitkini ekle.</p>
+  </div>
+  <div class="table-container" id="table-wrap">
+    <table id="main-table">
+      <thead><tr id="header-row"></tr></thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Bottom bar -->
+<div class="add-bar">
+  <div class="add-bar-left">
+    <div class="multi-select-info" id="multi-info">
+      <span><span class="multi-count" id="multi-count">0</span> bitki seçildi</span>
+      <button class="btn-cancel-multi" id="btn-cancel-multi">İptal</button>
+    </div>
+  </div>
+  <button class="btn-add-group" id="btn-add-group">＋ Grup</button>
+  <button class="btn-group-assign" id="btn-group-assign" style="display:none">📂 Gruba Taşı</button>
+  <button class="btn-add-plant" id="btn-add-plant">＋ Bitki Ekle</button>
+</div>
+
+<!-- Add/Edit Plant Sheet -->
+<div class="overlay" id="add-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2 id="add-sheet-title">Yeni Bitki</h2>
+    <div class="field">
+      <label>İsim</label>
+      <input type="text" id="plant-name-input" placeholder="ör. Monstera, Büyük Kaktüs…" maxlength="30">
+    </div>
+    <div class="field">
+      <label>Grup</label>
+      <select id="plant-group-select">
+        <option value="">— Grupsuz —</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Renk <span id="color-inherit-note" style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--text2)"></span></label>
+      <div class="color-grid" id="color-grid"></div>
+    </div>
+    <div class="field">
+      <label>Not (isteğe bağlı)</label>
+      <input type="text" id="plant-note-input" placeholder="ör. balkon, büyük saksı…" maxlength="60">
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" id="btn-cancel-add">İptal</button>
+      <button class="btn-primary" id="btn-save-plant">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- Assign to Group Sheet -->
+<div class="overlay" id="assign-group-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2 id="assign-group-title">Gruba Taşı</h2>
+    <div id="assign-group-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" id="btn-cancel-assign">İptal</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Group Sheet -->
+<div class="overlay" id="group-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2 id="group-sheet-title">Yeni Grup</h2>
+    <div class="field">
+      <label>Grup adı</label>
+      <input type="text" id="group-name-input" placeholder="ör. Balkondakiler, Saksılar…" maxlength="30">
+    </div>
+    <div class="field">
+      <label>Renk</label>
+      <div class="color-grid" id="group-color-grid"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" id="btn-cancel-group">İptal</button>
+      <button class="btn-primary" id="btn-save-group">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- Action Sheet -->
+<div class="overlay" id="action-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2 id="action-title">İşlem seç</h2>
+    <div class="action-grid">
+      <div class="action-item" data-action="water"><span class="emoji">💧</span><span class="label">Sulama</span></div>
+      <div class="action-item" data-action="fertilize"><span class="emoji">🌱</span><span class="label">Gübre</span></div>
+      <div class="action-item" data-action="prune"><span class="emoji">✂️</span><span class="label">Budama</span></div>
+      <div class="action-item" data-action="repot"><span class="emoji">🔄</span><span class="label">Saksı/toprak</span></div>
+      <div class="action-item" data-action="problem"><span class="emoji">🐛</span><span class="label">Sorun</span></div>
+      <div class="action-item" data-action="note"><span class="emoji">📝</span><span class="label">Not</span></div>
+    </div>
+    <div class="note-section" id="note-section" style="display:none">
+      <div class="field">
+        <label>Not</label>
+        <textarea id="action-note-input" placeholder="Not ekle…" maxlength="200" rows="3"></textarea>
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" id="btn-cancel-action">İptal</button>
+      <button class="btn-primary" id="btn-save-action">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- Context Menu (plant) -->
+<div class="ctx-menu" id="ctx-menu">
+  <div class="ctx-item" id="ctx-edit">✏️ Düzenle</div>
+  <div class="ctx-item danger" id="ctx-delete">🗑️ Sil</div>
+</div>
+
+<!-- Context Menu (group) -->
+<div class="ctx-menu" id="ctx-group-menu">
+  <div class="ctx-item" id="ctx-group-edit">✏️ Grubu düzenle</div>
+  <div class="ctx-item danger" id="ctx-group-delete">🗑️ Grubu sil</div>
+</div>
+
+<!-- Note Popup -->
+<div class="note-popup" id="note-popup">
+  <div class="note-popup-label">📝 Not</div>
+  <div id="note-popup-text"></div>
+  <div class="note-popup-actions">
+    <button id="note-popup-close">Kapat</button>
+    <button class="danger" id="note-popup-delete">Sil</button>
+  </div>
+</div>
+
+<script>
+const FIREBASE_CONFIG = {
+  databaseURL: "https://sprout-greenhouse-default-rtdb.europe-west1.firebasedatabase.app"
+};
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.database();
+
+let currentUser = null; // aktif kullanıcı adı
+const APP_NAME = "Prof. Sprout's Greenhouse";
+
+const COLORS = [
+  '#5a9e6f','#7dbf8e','#4a90d9','#a78bfa','#f97316',
+  '#ec4899','#eab308','#14b8a6','#ef4444','#64748b',
+  '#d97706','#06b6d4'
+];
+
+const ACTIONS = {
+  water:     { emoji:'💧', label:'Sulama' },
+  fertilize: { emoji:'🌱', label:'Gübre' },
+  prune:     { emoji:'✂️', label:'Budama' },
+  repot:     { emoji:'🔄', label:'Saksı/toprak' },
+  problem:   { emoji:'🐛', label:'Sorun' },
+  note:      { emoji:'📝', label:'Not' }
+};
+
+// ── STATE ──
+let plants  = [];  // {id, name, color|null, note, groupId|null}
+let groups  = [];  // {id, name, color}
+let records = {};  // "plantId|YYYY-MM-DD" → {actions:[], note:""}
+let collapsedGroups = new Set(); // group ids that are collapsed
+
+let currentYear, currentMonth;
+let activeFilter   = null;
+let multiSelected  = new Set();
+let pendingCell    = null;
+let pendingMultiDate = null;
+let editingPlantId = null;
+let editingGroupId = null;
+let contextPlantId = null;
+let contextGroupId = null;
+let notePopupKey   = null;
+let selectedActions = new Set();
+let selectedColor  = COLORS[0];
+let selectedGroupColor = COLORS[0];
+let datePickerYear = null;
+
+// ── AUTH ──
+function initAuth() {
+  const saved = localStorage.getItem('sg_user');
+  if (saved) {
+    currentUser = saved;
+    initApp();
+  } else {
+    document.getElementById('login-screen').style.display = 'flex';
+  }
+}
+
+function login() {
+  const username = document.getElementById('login-username').value.trim().toLowerCase();
+  const pin = document.getElementById('login-pin').value.trim();
+  const errorEl = document.getElementById('login-error');
+
+  if (!username || username.length < 2) {
+    errorEl.textContent = 'Kullanıcı adı en az 2 karakter olmalı.';
+    errorEl.style.display = 'block'; return;
+  }
+  if (!/^\d{4}$/.test(pin)) {
+    errorEl.textContent = 'PIN 4 rakam olmalı.';
+    errorEl.style.display = 'block'; return;
+  }
+
+  // Check if username exists in Firebase
+  db.ref(`users/${username}/pin`).once('value').then(snap => {
+    const storedPin = snap.val();
+    if (storedPin === null) {
+      // New user — register
+      db.ref(`users/${username}/pin`).set(pin).then(() => {
+        localStorage.setItem('sg_user', username);
+        currentUser = username;
+        document.getElementById('login-screen').style.display = 'none';
+        initApp();
+      });
+    } else if (storedPin === pin) {
+      // Existing user — correct PIN
+      localStorage.setItem('sg_user', username);
+      currentUser = username;
+      document.getElementById('login-screen').style.display = 'none';
+      initApp();
+    } else {
+      // Wrong PIN
+      errorEl.textContent = 'Bu kullanıcı adı alınmış, PIN yanlış.';
+      errorEl.style.display = 'block';
+    }
+  });
+}
+
+// ── STORAGE ──
+function saveData() {
+  if (!currentUser) return;
+  const data = {
+    plants,
+    groups,
+    records,
+    collapsed: [...collapsedGroups]
+  };
+  db.ref(`users/${currentUser}/data`).set(data);
+  // localStorage'ı da güncelle (offline yedek)
+  localStorage.setItem('sg_plants',  JSON.stringify(plants));
+  localStorage.setItem('sg_groups',  JSON.stringify(groups));
+  localStorage.setItem('sg_records', JSON.stringify(records));
+  localStorage.setItem('sg_collapsed', JSON.stringify([...collapsedGroups]));
+}
+
+function loadData(callback) {
+  db.ref(`users/${currentUser}/data`).once('value').then(snap => {
+    const data = snap.val();
+    if (data) {
+      plants  = data.plants  || [];
+      groups  = data.groups  || [];
+      records = data.records || {};
+      collapsedGroups = new Set(data.collapsed || []);
+    } else {
+      // Firebase boş — localStorage'dan aktar (ilk geçiş)
+      try {
+        plants  = JSON.parse(localStorage.getItem('sg_plants')  || '[]');
+        groups  = JSON.parse(localStorage.getItem('sg_groups')  || '[]');
+        records = JSON.parse(localStorage.getItem('sg_records') || '{}');
+        collapsedGroups = new Set(JSON.parse(localStorage.getItem('sg_collapsed') || '[]'));
+        // Eski aa_ verilerini de aktar
+        if (!plants.length && localStorage.getItem('aa_plants')) {
+          plants  = JSON.parse(localStorage.getItem('aa_plants') || '[]');
+          records = JSON.parse(localStorage.getItem('aa_records') || '{}');
+        }
+        // Veriyi Firebase'e yükle
+        if (plants.length) saveData();
+      } catch(e) { plants = []; groups = []; records = {}; }
+    }
+    pruneOldData();
+    if (callback) callback();
+  });
+}
+
+function pruneOldData() {
+  const cutoff1yr = new Date(); cutoff1yr.setFullYear(cutoff1yr.getFullYear() - 1);
+  const cutoff5yr = new Date(); cutoff5yr.setFullYear(cutoff5yr.getFullYear() - 5);
+  const str1yr = cutoff1yr.toISOString().slice(0,10);
+  const str5yr = cutoff5yr.toISOString().slice(0,10);
+  const LONG_TERM = ['fertilize','prune','repot','problem'];
+  let changed = false;
+  for (const key of Object.keys(records)) {
+    const date = key.split('|')[1]; if (!date) continue;
+    const rec = records[key];
+    if (date < str5yr) { delete records[key]; changed = true; continue; }
+    if (date < str1yr) {
+      const had = rec.actions.includes('water');
+      rec.actions = rec.actions.filter(a => LONG_TERM.includes(a));
+      if (rec.actions.length === 0 && !rec.note) { delete records[key]; changed = true; }
+      else if (had) changed = true;
+    }
+  }
+  if (changed) localStorage.setItem('sg_records', JSON.stringify(records));
+}
+
+// ── DATE HELPERS ──
+function daysInMonth(y, m) { return new Date(y, m+1, 0).getDate(); }
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function cellDate(y, m, day) {
+  return `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+}
+function monthLabel(y, m) {
+  return new Date(y, m, 1).toLocaleDateString('tr-TR', {month:'long', year:'numeric'});
+}
+
+// ── PLANT COLOR (own > group > default) ──
+function plantColor(plant) {
+  if (plant.color) return plant.color;
+  if (plant.groupId) {
+    const g = groups.find(g => g.id === plant.groupId);
+    if (g) return g.color;
+  }
+  return '#9aaa9a';
+}
+
+// ── RENDER ──
+function render() {
+  document.getElementById('month-label').textContent = monthLabel(currentYear, currentMonth);
+  renderTable();
+  renderMultiBar();
+  applyFilter(activeFilter, false);
+}
+
+function renderTable() {
+  const today = todayStr();
+  const days  = daysInMonth(currentYear, currentMonth);
+  const hrow  = document.getElementById('header-row');
+  const tbody = document.getElementById('table-body');
+  const empty = document.getElementById('empty-state');
+  const tableWrap = document.getElementById('table-wrap');
+
+  hrow.innerHTML = '';
+  tbody.innerHTML = '';
+
+  if (plants.length === 0) {
+    empty.style.display = ''; tableWrap.style.display = 'none'; return;
+  }
+  empty.style.display = 'none'; tableWrap.style.display = '';
+
+  // ── HEADER ROW ──
+  const thPlant = document.createElement('th');
+  thPlant.className = 'plant-col-head'; thPlant.textContent = 'Bitkiler';
+  hrow.appendChild(thPlant);
+
+  for (let d = 1; d <= days; d++) {
+    const th = document.createElement('th');
+    const dateStr = cellDate(currentYear, currentMonth, d);
+    th.textContent = d;
+    const band = Math.floor((d - 1) / 5) % 2;
+    if (band === 1) th.classList.add('col-zebra');
+    if (dateStr === today) th.className = 'today-head';
+    else if (dateStr > today) th.classList.add('future-head');
+    hrow.appendChild(th);
+  }
+
+  // ── GROUP SECTIONS ──
+  // Build ordered list: groups (with plants), then ungrouped
+  const grouped = groups.map(g => ({
+    group: g,
+    plants: plants.filter(p => p.groupId === g.id)
+  })).filter(s => s.plants.length > 0);
+
+  const ungrouped = plants.filter(p => !p.groupId);
+
+  function renderGroup(groupObj, plantList) {
+    const isCollapsed = groupObj ? collapsedGroups.has(groupObj.id) : false;
+
+    // Group header row
+    if (groupObj) {
+      const tr = document.createElement('tr');
+      tr.className = 'group-header-row';
+      tr.dataset.groupId = groupObj.id;
+
+      const tdName = document.createElement('td');
+      tdName.className = 'group-name-cell';
+      const icon = document.createElement('span');
+      icon.className = 'group-toggle-icon' + (isCollapsed ? '' : ' open');
+      icon.textContent = '▶';
+      const bar = document.createElement('span');
+      bar.className = 'group-color-bar';
+      bar.style.background = groupObj.color;
+      const label = document.createElement('div');
+      label.className = 'group-label';
+      label.appendChild(icon);
+      label.appendChild(bar);
+      label.appendChild(document.createTextNode(groupObj.name));
+      tdName.appendChild(label);
+      tr.appendChild(tdName);
+
+      // Fill remaining cells (empty, spanning)
+      for (let d = 1; d <= days; d++) {
+        const td = document.createElement('td');
+        td.style.cursor = 'default';
+        tr.appendChild(td);
+      }
+
+      tdName.addEventListener('click', () => toggleGroup(groupObj.id));
+      addLongPress(tr, () => showGroupContextMenu(groupObj.id, tr));
+      tbody.appendChild(tr);
+    }
+
+    // Plant rows
+    plantList.forEach((plant, rowIdx) => {
+      const tr = document.createElement('tr');
+      tr.className = 'plant-row';
+      tr.dataset.plantId = plant.id;
+      if (groupObj && isCollapsed) tr.classList.add('group-hidden');
+
+      // 3-banded row zebra (reset per group)
+      const rowBand = Math.floor(rowIdx / 3) % 2;
+      if (rowBand === 1) tr.classList.add('row-zebra');
+
+      const tdName = document.createElement('td');
+      tdName.className = 'plant-name-cell';
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'plant-name-text';
+      nameSpan.style.color = plantColor(plant);
+      nameSpan.textContent = plant.name;
+      const lbl = document.createElement('div');
+      lbl.className = 'plant-label';
+      lbl.appendChild(nameSpan);
+      tdName.appendChild(lbl);
+      tdName.addEventListener('click', () => handleNameClick(plant.id, tdName));
+      addLongPress(tdName, () => showContextMenu(plant.id, tdName));
+      tr.appendChild(tdName);
+
+      for (let d = 1; d <= days; d++) {
+        const td = document.createElement('td');
+        const dateStr = cellDate(currentYear, currentMonth, d);
+        const isFuture = dateStr > today;
+        const isToday  = dateStr === today;
+        const colBand  = Math.floor((d - 1) / 5) % 2;
+
+        if (isToday)       td.className = 'today-col';
+        else if (isFuture) td.className = 'future-col';
+        else if (colBand === 1) td.classList.add('col-zebra');
+
+        const key = `${plant.id}|${dateStr}`;
+        const rec = records[key];
+        if (rec && (rec.actions.length > 0 || rec.note)) {
+          const div = document.createElement('div');
+          div.className = 'cell-content';
+          const emojis = rec.actions.filter(a => a !== 'note').map(a => ACTIONS[a]?.emoji || '').join('');
+          div.textContent = emojis + (rec.note ? '📝' : '');
+          td.appendChild(div);
+        }
+
+        if (!isFuture) {
+          td.addEventListener('click', (e) => {
+            const r = records[key];
+            if (r?.note && r.actions.filter(a => a !== 'note').length === 0) {
+              hideNotePopup(); showNotePopup(e, key, r.note); return;
+            }
+            handleCellClick(e, plant.id, dateStr, td);
+          });
+          addLongPress(td, () => handleCellLongPress(plant.id, dateStr));
+        }
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    });
+  }
+
+  grouped.forEach(s => renderGroup(s.group, s.plants));
+  if (ungrouped.length > 0) renderGroup(null, ungrouped);
+
+  // Scroll to today
+  if (currentYear === new Date().getFullYear() && currentMonth === new Date().getMonth()) {
+    requestAnimationFrame(scrollToToday);
+  }
+}
+
+function scrollToToday() {
+  const today = new Date().getDate();
+  const tableWrap = document.getElementById('table-wrap');
+  const offset = 140 + (today - 3) * 38;
+  tableWrap.scrollLeft = Math.max(0, offset);
+}
+
+function toggleGroup(groupId) {
+  if (collapsedGroups.has(groupId)) collapsedGroups.delete(groupId);
+  else collapsedGroups.add(groupId);
+  saveData();
+  // Toggle visibility of rows
+  document.querySelectorAll(`tr.plant-row[data-plant-id]`).forEach(tr => {
+    const pid = tr.dataset.plantId;
+    const plant = plants.find(p => p.id === pid);
+    if (plant?.groupId === groupId) {
+      tr.classList.toggle('group-hidden', collapsedGroups.has(groupId));
+    }
+  });
+  // Update icon
+  document.querySelectorAll(`tr.group-header-row[data-group-id="${groupId}"] .group-toggle-icon`).forEach(icon => {
+    icon.classList.toggle('open', !collapsedGroups.has(groupId));
+  });
+}
+
+function renderMultiBar() {
+  const info      = document.getElementById('multi-info');
+  const addBtn    = document.getElementById('btn-add-plant');
+  const assignBtn = document.getElementById('btn-group-assign');
+  if (multiSelected.size > 0) {
+    info.classList.add('visible');
+    document.getElementById('multi-count').textContent = multiSelected.size;
+    addBtn.textContent = '✓ İşlem Uygula';
+    addBtn.onclick = applyMultiAction;
+    assignBtn.style.display = '';
+  } else {
+    info.classList.remove('visible');
+    addBtn.textContent = '＋ Bitki Ekle';
+    addBtn.onclick = openAddSheet;
+    assignBtn.style.display = 'none';
+  }
+}
+
+// ── LONG PRESS ──
+function addLongPress(el, callback) {
+  let timer = null, moved = false;
+  el.addEventListener('touchstart', (e) => {
+    moved = false;
+    timer = setTimeout(() => { if (!moved) { e.preventDefault(); callback(e); } }, 500);
+  }, { passive: false });
+  el.addEventListener('touchmove', () => { moved = true; clearTimeout(timer); });
+  el.addEventListener('touchend', () => clearTimeout(timer));
+  el.addEventListener('touchcancel', () => clearTimeout(timer));
+  el.addEventListener('contextmenu', (e) => { e.preventDefault(); callback(e); });
+}
+
+// ── CELL INTERACTIONS ──
+function handleCellClick(e, plantId, date, td) {
+  hideNotePopup();
+  const key = `${plantId}|${date}`;
+  const rec = records[key];
+  const actionCount = rec ? rec.actions.length : 0;
+  const hasNote = rec && rec.note;
+
+  if (multiSelected.size > 0) {
+    pendingMultiDate = date;
+    openActionSheet(null, null, date, null);
+    return;
+  }
+  if (actionCount === 0 && !hasNote) {
+    ripple(e, td); addRecord(plantId, date, 'water'); renderTable(); return;
+  }
+  if (actionCount === 1 && !hasNote) {
+    delete records[key]; saveData(); renderTable(); return;
+  }
+  openActionSheet(plantId, date, date, rec);
+}
+
+function handleCellLongPress(plantId, date) {
+  openActionSheet(plantId, date, date, records[`${plantId}|${date}`] || null);
+}
+
+function handleNameClick(plantId, tdEl) {
+  if (multiSelected.has(plantId)) {
+    multiSelected.delete(plantId);
+    tdEl.closest('tr').classList.remove('multi-selected');
+  } else {
+    multiSelected.add(plantId);
+    tdEl.closest('tr').classList.add('multi-selected');
+  }
+  renderMultiBar();
+}
+
+function applyMultiAction() {
+  pendingMultiDate = todayStr();
+  openActionSheet(null, null, pendingMultiDate, null);
+}
+
+function openActionSheet(plantId, date, displayDate, existingRec) {
+  pendingCell = plantId ? { plantId, date } : null;
+  const plant = plantId ? plants.find(p => p.id === plantId) : null;
+  const dayNum = parseInt(displayDate.split('-')[2]);
+  document.getElementById('action-title').textContent = multiSelected.size > 0
+    ? `${multiSelected.size} bitki · ${dayNum} ${monthLabel(currentYear, currentMonth)}`
+    : `${plant?.name} · ${dayNum} ${monthLabel(currentYear, currentMonth)}`;
+  selectedActions = new Set(existingRec ? existingRec.actions : []);
+  const noteInput = document.getElementById('action-note-input');
+  noteInput.value = existingRec?.note || '';
+  document.getElementById('note-section').style.display =
+    (selectedActions.has('note') || noteInput.value) ? '' : 'none';
+  renderActionButtons();
+  openOverlay('action-overlay');
+}
+
+function renderActionButtons() {
+  document.querySelectorAll('.action-item').forEach(item => {
+    item.classList.toggle('selected-action', selectedActions.has(item.dataset.action));
+  });
+  const noteInput = document.getElementById('action-note-input');
+  document.getElementById('note-section').style.display =
+    (selectedActions.has('note') || noteInput.value) ? '' : 'none';
+}
+
+function toggleAction(type) {
+  if (selectedActions.has(type)) selectedActions.delete(type);
+  else selectedActions.add(type);
+  renderActionButtons();
+}
+
+// ── RECORDS ──
+function addRecord(plantId, date, action) {
+  const key = `${plantId}|${date}`;
+  if (!records[key]) records[key] = { actions: [], note: '' };
+  if (!records[key].actions.includes(action)) records[key].actions.push(action);
+  saveData();
+}
+
+function saveAction() {
+  const note = document.getElementById('action-note-input').value.trim();
+  const actionsArr = Array.from(selectedActions).filter(a => a !== 'note');
+
+  function applyToCell(pid, date) {
+    const key = `${pid}|${date}`;
+    if (actionsArr.length === 0 && !note) delete records[key];
+    else records[key] = { actions: actionsArr, note };
+  }
+
+  if (pendingCell?.plantId) {
+    applyToCell(pendingCell.plantId, pendingCell.date);
+  } else {
+    const targetDate = pendingMultiDate || todayStr();
+    multiSelected.forEach(pid => applyToCell(pid, targetDate));
+    multiSelected.clear();
+    pendingMultiDate = null;
+    document.querySelectorAll('#table-body tr').forEach(tr => tr.classList.remove('multi-selected'));
+  }
+  saveData(); closeOverlay('action-overlay'); pendingCell = null; selectedActions = new Set(); render();
+}
+
+// ── NOTE POPUP ──
+function showNotePopup(e, key, note) {
+  notePopupKey = key;
+  const popup = document.getElementById('note-popup');
+  document.getElementById('note-popup-text').textContent = note;
+  popup.classList.add('visible');
+  const x = e.touches ? e.touches[0].clientX : e.clientX;
+  const y = e.touches ? e.touches[0].clientY : e.clientY;
+  const left = Math.min(x + 8, window.innerWidth - 268);
+  const top  = Math.min(y + 8, window.innerHeight - 110);
+  popup.style.left = left + 'px'; popup.style.top = top + 'px';
+}
+function hideNotePopup() {
+  document.getElementById('note-popup').classList.remove('visible'); notePopupKey = null;
+}
+
+// ── FILTERS ──
+function applyFilter(filter, toggle = true) {
+  if (toggle) activeFilter = activeFilter === filter ? null : filter;
+  else activeFilter = filter;
+
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  if (activeFilter) {
+    const btn = document.querySelector(`[data-filter="${activeFilter}"]`);
+    if (btn) btn.classList.add('active');
+  }
+
+  const today     = new Date();
+  const sevenAgo  = new Date(today); sevenAgo.setDate(sevenAgo.getDate() - 7);
+  const fourteenAgo = new Date(today); fourteenAgo.setDate(fourteenAgo.getDate() - 14);
+  const thirtyAgo = new Date(today); thirtyAgo.setDate(thirtyAgo.getDate() - 30);
+  const ninetyAgo = new Date(today); ninetyAgo.setDate(ninetyAgo.getDate() - 90);
+
+  function countInRange(pid, action, from, to) {
+    let cnt = 0;
+    for (const key of Object.keys(records)) {
+      const [p, date] = key.split('|'); if (p !== pid) continue;
+      const d = new Date(date);
+      if (d >= from && d <= to && records[key].actions.includes(action)) cnt++;
+    }
+    return cnt;
+  }
+  function hasActionSince(pid, action, from) {
+    for (const key of Object.keys(records)) {
+      const [p, date] = key.split('|'); if (p !== pid) continue;
+      if (new Date(date) >= from && records[key].actions.includes(action)) return true;
+    }
+    return false;
+  }
+
+  document.querySelectorAll('#table-body tr.plant-row').forEach(tr => {
+    const pid = tr.dataset.plantId; let show = true;
+    if (activeFilter === 'water-heavy') show = countInRange(pid, 'water', sevenAgo, today) >= 3;
+    else if (activeFilter === 'water-light') show = countInRange(pid, 'water', fourteenAgo, today) <= 1;
+    else if (activeFilter === 'repotted') show = hasActionSince(pid, 'repot', ninetyAgo);
+    else if (activeFilter === 'fertilized') show = hasActionSince(pid, 'fertilize', thirtyAgo);
+    tr.classList.toggle('filtered-out', !show);
+  });
+}
+
+// ── CONTEXT MENUS ──
+function showContextMenu(plantId, el) {
+  contextPlantId = plantId;
+  const menu = document.getElementById('ctx-menu');
+  const rect = el.getBoundingClientRect();
+  menu.style.top  = (rect.bottom + 4) + 'px';
+  menu.style.left = rect.left + 'px';
+  menu.classList.add('open');
+}
+function hideContextMenu() { document.getElementById('ctx-menu').classList.remove('open'); }
+
+function showGroupContextMenu(groupId, el) {
+  contextGroupId = groupId;
+  const menu = document.getElementById('ctx-group-menu');
+  const rect = el.getBoundingClientRect();
+  menu.style.top  = (rect.bottom + 2) + 'px';
+  menu.style.left = '14px';
+  menu.classList.add('open');
+}
+function hideGroupContextMenu() { document.getElementById('ctx-group-menu').classList.remove('open'); }
+
+// ── OVERLAYS ──
+function openOverlay(id)  { document.getElementById(id).classList.add('open'); }
+function closeOverlay(id) { document.getElementById(id).classList.remove('open'); }
+
+// ── DATE PICKER ──
+function openDatePicker() {
+  const dp = document.getElementById('date-picker');
+  if (dp.style.display !== 'none') { closeDatePicker(); return; }
+  datePickerYear = currentYear; renderDatePicker(); dp.style.display = '';
+}
+function closeDatePicker() { document.getElementById('date-picker').style.display = 'none'; }
+function renderDatePicker() {
+  const now = new Date();
+  document.getElementById('dp-year-label').textContent = datePickerYear;
+  document.getElementById('dp-next-year').disabled = datePickerYear >= now.getFullYear();
+  document.getElementById('dp-next-year').style.opacity = datePickerYear >= now.getFullYear() ? '0.3' : '1';
+  const TR_MONTHS = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+  const container = document.getElementById('dp-months'); container.innerHTML = '';
+  TR_MONTHS.forEach((name, i) => {
+    const btn = document.createElement('button'); btn.className = 'dp-month-btn'; btn.textContent = name;
+    const isFuture  = datePickerYear === now.getFullYear() && i > now.getMonth();
+    const isCurrent = datePickerYear === currentYear && i === currentMonth;
+    if (isFuture)  btn.classList.add('future');
+    if (isCurrent) btn.classList.add('current');
+    if (!isFuture) btn.addEventListener('click', () => {
+      currentYear = datePickerYear; currentMonth = i; closeDatePicker(); render();
+    });
+    container.appendChild(btn);
+  });
+}
+
+// ── COLOR GRIDS ──
+function renderColorGrid(containerId, currentColor, onSelect, allowInherit) {
+  const grid = document.getElementById(containerId); grid.innerHTML = '';
+  if (allowInherit) {
+    const sw = document.createElement('div');
+    sw.className = 'color-swatch no-color' + (currentColor === null ? ' selected' : '');
+    sw.title = 'Gruptan al'; sw.textContent = '↑';
+    sw.addEventListener('click', () => { onSelect(null); renderColorGrid(containerId, null, onSelect, allowInherit); });
+    grid.appendChild(sw);
+  }
+  COLORS.forEach(c => {
+    const sw = document.createElement('div');
+    sw.className = 'color-swatch' + (c === currentColor ? ' selected' : '');
+    sw.style.background = c;
+    sw.addEventListener('click', () => { onSelect(c); renderColorGrid(containerId, c, onSelect, allowInherit); });
+    grid.appendChild(sw);
+  });
+}
+
+// ── ADD / EDIT PLANT ──
+function openAddSheet() {
+  editingPlantId = null;
+  document.getElementById('add-sheet-title').textContent = 'Yeni Bitki';
+  document.getElementById('plant-name-input').value = '';
+  document.getElementById('plant-note-input').value = '';
+  selectedColor = COLORS[0];
+  refreshGroupSelect(null);
+  updateColorInheritNote(null);
+  renderColorGrid('color-grid', selectedColor, (c) => { selectedColor = c; updateColorInheritNote(document.getElementById('plant-group-select').value); }, true);
+  openOverlay('add-overlay');
+  setTimeout(() => document.getElementById('plant-name-input').focus(), 100);
+}
+
+function openEditSheet(plantId) {
+  const plant = plants.find(p => p.id === plantId); if (!plant) return;
+  editingPlantId = plantId;
+  document.getElementById('add-sheet-title').textContent = 'Bitki Düzenle';
+  document.getElementById('plant-name-input').value  = plant.name;
+  document.getElementById('plant-note-input').value  = plant.note || '';
+  selectedColor = plant.color || null;
+  refreshGroupSelect(plant.groupId || null);
+  updateColorInheritNote(plant.groupId || null);
+  renderColorGrid('color-grid', selectedColor, (c) => { selectedColor = c; }, true);
+  openOverlay('add-overlay');
+}
+
+function refreshGroupSelect(selectedGroupId) {
+  const sel = document.getElementById('plant-group-select');
+  sel.innerHTML = '<option value="">— Grupsuz —</option>';
+  groups.forEach(g => {
+    const opt = document.createElement('option');
+    opt.value = g.id; opt.textContent = g.name;
+    if (g.id === selectedGroupId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function updateColorInheritNote(groupId) {
+  const note = document.getElementById('color-inherit-note');
+  if (!groupId) { note.textContent = ''; return; }
+  const g = groups.find(g => g.id === groupId);
+  note.textContent = g ? `(↑ = grup rengi: ${g.name})` : '';
+}
+
+function savePlant() {
+  const name = document.getElementById('plant-name-input').value.trim();
+  if (!name) { document.getElementById('plant-name-input').focus(); return; }
+  const note    = document.getElementById('plant-note-input').value.trim();
+  const groupId = document.getElementById('plant-group-select').value || null;
+  if (editingPlantId) {
+    const plant = plants.find(p => p.id === editingPlantId);
+    if (plant) { plant.name = name; plant.color = selectedColor; plant.note = note; plant.groupId = groupId; }
+  } else {
+    plants.push({ id: Date.now().toString(), name, color: selectedColor, note, groupId });
+  }
+  saveData(); closeOverlay('add-overlay'); render();
+}
+
+function deletePlant(plantId) {
+  if (!confirm('Bu bitkiyi ve tüm kayıtlarını sil?')) return;
+  plants = plants.filter(p => p.id !== plantId);
+  for (const key of Object.keys(records)) { if (key.startsWith(plantId + '|')) delete records[key]; }
+  saveData(); render();
+}
+
+// ── ASSIGN TO GROUP ──
+let assignTargetPlants = null; // Set of plantIds to assign, or null = use multiSelected
+
+function openAssignGroupSheet(plantIds, titleOverride) {
+  assignTargetPlants = plantIds ? new Set(plantIds) : null;
+  const count = plantIds ? plantIds.length : multiSelected.size;
+  document.getElementById('assign-group-title').textContent =
+    titleOverride || `${count} bitkiyi gruba taşı`;
+
+  const list = document.getElementById('assign-group-list');
+  list.innerHTML = '';
+
+  // Ungrouped option
+  const ungroup = document.createElement('div');
+  ungroup.className = 'assign-ungroup-item';
+  ungroup.innerHTML = '<span>— Grupsuz —</span>';
+  ungroup.addEventListener('click', () => assignToGroup(null));
+  list.appendChild(ungroup);
+
+  if (groups.length === 0) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'color:var(--text2);font-size:13px;padding:10px 0;text-align:center;';
+    empty.textContent = 'Henüz grup yok. Önce ＋ Grup ile grup oluştur.';
+    list.appendChild(empty);
+  }
+
+  groups.forEach(g => {
+    const item = document.createElement('div');
+    item.className = 'assign-group-item';
+    const dot = document.createElement('span');
+    dot.className = 'assign-group-dot'; dot.style.background = g.color;
+    const name = document.createElement('span');
+    name.className = 'assign-group-name'; name.textContent = g.name;
+    const cnt = document.createElement('span');
+    cnt.className = 'assign-group-count';
+    cnt.textContent = plants.filter(p => p.groupId === g.id).length + ' bitki';
+    item.appendChild(dot); item.appendChild(name); item.appendChild(cnt);
+    item.addEventListener('click', () => assignToGroup(g.id));
+    list.appendChild(item);
+  });
+
+  openOverlay('assign-group-overlay');
+}
+
+function assignToGroup(groupId) {
+  const targets = assignTargetPlants || multiSelected;
+  targets.forEach(pid => {
+    const plant = plants.find(p => p.id === pid);
+    if (plant) plant.groupId = groupId;
+  });
+  // Clear multi-select
+  multiSelected.clear();
+  assignTargetPlants = null;
+  document.querySelectorAll('#table-body tr').forEach(tr => tr.classList.remove('multi-selected'));
+  saveData();
+  closeOverlay('assign-group-overlay');
+  render();
+}
+
+// ── ADD / EDIT GROUP ──
+function openAddGroupSheet() {
+  editingGroupId = null;
+  document.getElementById('group-sheet-title').textContent = 'Yeni Grup';
+  document.getElementById('group-name-input').value = '';
+  selectedGroupColor = COLORS[0];
+  renderColorGrid('group-color-grid', selectedGroupColor, (c) => { selectedGroupColor = c; }, false);
+  openOverlay('group-overlay');
+  setTimeout(() => document.getElementById('group-name-input').focus(), 100);
+}
+
+function openEditGroupSheet(groupId) {
+  const group = groups.find(g => g.id === groupId); if (!group) return;
+  editingGroupId = groupId;
+  document.getElementById('group-sheet-title').textContent = 'Grubu Düzenle';
+  document.getElementById('group-name-input').value = group.name;
+  selectedGroupColor = group.color;
+  renderColorGrid('group-color-grid', selectedGroupColor, (c) => { selectedGroupColor = c; }, false);
+  openOverlay('group-overlay');
+}
+
+function saveGroup() {
+  const name = document.getElementById('group-name-input').value.trim();
+  if (!name) { document.getElementById('group-name-input').focus(); return; }
+  if (editingGroupId) {
+    const group = groups.find(g => g.id === editingGroupId);
+    if (group) { group.name = name; group.color = selectedGroupColor; }
+    saveData(); closeOverlay('group-overlay'); render();
+  } else {
+    const newGroup = { id: Date.now().toString(), name, color: selectedGroupColor };
+    groups.push(newGroup);
+    saveData(); closeOverlay('group-overlay'); render();
+    // Offer to assign existing plants to the new group
+    const ungrouped = plants.filter(p => !p.groupId);
+    if (ungrouped.length > 0) {
+      setTimeout(() => {
+        openAssignGroupSheet(ungrouped.map(p => p.id), `"${name}" grubuna bitki ekle`);
+        // Pre-select the new group in the list by scrolling — list already built with new group
+      }, 200);
+    }
+  }
+}
+
+function deleteGroup(groupId) {
+  if (!confirm('Bu grubu sil? Bitkiler grupsuz kalır, kayıtlar korunur.')) return;
+  groups = groups.filter(g => g.id !== groupId);
+  plants.forEach(p => { if (p.groupId === groupId) p.groupId = null; });
+  collapsedGroups.delete(groupId);
+  saveData(); render();
+}
+
+// ── RIPPLE ──
+function ripple(e, td) {
+  const r = document.createElement('span'); r.className = 'ripple';
+  const size = Math.max(td.offsetWidth, td.offsetHeight);
+  r.style.width = r.style.height = size + 'px';
+  const rect = td.getBoundingClientRect();
+  const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left - size/2;
+  const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top - size/2;
+  r.style.left = x + 'px'; r.style.top = y + 'px';
+  td.appendChild(r); r.addEventListener('animationend', () => r.remove());
+}
+
+function initApp() {
+  const now = new Date();
+  currentYear = now.getFullYear(); currentMonth = now.getMonth();
+  console.log('initApp called, currentUser:', currentUser);
+  loadData(() => {
+    console.log('loadData done, plants:', plants.length);
+    render();
+  });
+}
+// ── INIT ──
+function init() {
+  const now = new Date();
+  currentYear = now.getFullYear(); currentMonth = now.getMonth();
+
+  // Month nav
+  document.getElementById('prev-month').addEventListener('click', () => {
+    closeDatePicker();
+    if (currentMonth === 0) { currentMonth = 11; currentYear--; } else currentMonth--;
+    render();
+  });
+  document.getElementById('next-month').addEventListener('click', () => {
+    closeDatePicker();
+    const n = new Date();
+    if (currentYear === n.getFullYear() && currentMonth === n.getMonth()) return;
+    if (currentMonth === 11) { currentMonth = 0; currentYear++; } else currentMonth++;
+    render();
+  });
+  document.getElementById('month-label').addEventListener('click', openDatePicker);
+  document.getElementById('dp-prev-year').addEventListener('click', () => { datePickerYear--; renderDatePicker(); });
+  document.getElementById('dp-next-year').addEventListener('click', () => {
+    if (datePickerYear >= new Date().getFullYear()) return; datePickerYear++; renderDatePicker();
+  });
+
+  // Filters
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const f = btn.dataset.filter;
+      if (f === 'all') { activeFilter = null; applyFilter(null, false); return; }
+      applyFilter(f);
+    });
+  });
+
+  // Plant sheet
+  document.getElementById('btn-add-plant').addEventListener('click', openAddSheet);
+  document.getElementById('btn-cancel-add').addEventListener('click', () => closeOverlay('add-overlay'));
+  document.getElementById('btn-save-plant').addEventListener('click', savePlant);
+  document.getElementById('plant-name-input').addEventListener('keydown', e => { if (e.key === 'Enter') savePlant(); });
+  document.getElementById('plant-group-select').addEventListener('change', (e) => {
+    updateColorInheritNote(e.target.value || null);
+  });
+
+  // Group assign sheet
+  document.getElementById('btn-group-assign').addEventListener('click', () => openAssignGroupSheet(null, null));
+  document.getElementById('btn-cancel-assign').addEventListener('click', () => closeOverlay('assign-group-overlay'));
+  document.getElementById('assign-group-overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'assign-group-overlay') closeOverlay('assign-group-overlay');
+  });
+
+  // Group sheet
+  document.getElementById('btn-add-group').addEventListener('click', openAddGroupSheet);
+  document.getElementById('btn-cancel-group').addEventListener('click', () => closeOverlay('group-overlay'));
+  document.getElementById('btn-save-group').addEventListener('click', saveGroup);
+  document.getElementById('group-name-input').addEventListener('keydown', e => { if (e.key === 'Enter') saveGroup(); });
+
+  // Action sheet
+  document.querySelectorAll('.action-item').forEach(item => {
+    item.addEventListener('click', () => toggleAction(item.dataset.action));
+  });
+  document.getElementById('btn-cancel-action').addEventListener('click', () => {
+    closeOverlay('action-overlay'); pendingCell = null; selectedActions = new Set();
+  });
+  document.getElementById('btn-save-action').addEventListener('click', saveAction);
+
+  // Multi cancel
+  document.getElementById('btn-cancel-multi').addEventListener('click', () => {
+    multiSelected.clear();
+    document.querySelectorAll('#table-body tr').forEach(tr => tr.classList.remove('multi-selected'));
+    renderMultiBar();
+  });
+
+  // Plant context menu
+  document.getElementById('ctx-edit').addEventListener('click', () => {
+    hideContextMenu(); openEditSheet(contextPlantId);
+  });
+  document.getElementById('ctx-delete').addEventListener('click', () => {
+    hideContextMenu(); deletePlant(contextPlantId);
+  });
+
+  // Group context menu
+  document.getElementById('ctx-group-edit').addEventListener('click', () => {
+    hideGroupContextMenu(); openEditGroupSheet(contextGroupId);
+  });
+  document.getElementById('ctx-group-delete').addEventListener('click', () => {
+    hideGroupContextMenu(); deleteGroup(contextGroupId);
+  });
+
+  // Note popup
+  document.getElementById('note-popup-close').addEventListener('click', hideNotePopup);
+  document.getElementById('note-popup-delete').addEventListener('click', () => {
+    if (notePopupKey && records[notePopupKey]) {
+      delete records[notePopupKey].note;
+      if (records[notePopupKey].actions.length === 0) delete records[notePopupKey];
+      saveData();
+    }
+    hideNotePopup(); renderTable();
+  });
+
+  // Outside click handlers
+  document.addEventListener('click', (e) => {
+    const dp = document.getElementById('date-picker');
+    if (!dp.contains(e.target) && e.target.id !== 'month-label') closeDatePicker();
+    if (!document.getElementById('ctx-menu').contains(e.target)) hideContextMenu();
+    if (!document.getElementById('ctx-group-menu').contains(e.target)) hideGroupContextMenu();
+    const popup = document.getElementById('note-popup');
+    if (popup.classList.contains('visible') && !popup.contains(e.target)) hideNotePopup();
+  });
+
+  // Overlay backdrop
+  ['add-overlay','action-overlay','group-overlay'].forEach(id => {
+    document.getElementById(id).addEventListener('click', (e) => {
+      if (e.target.id === id) closeOverlay(id);
+    });
+  });
+
+  // Login button
+  document.getElementById('pin-toggle').addEventListener('click', () => {
+    const pin = document.getElementById('login-pin');
+    const btn = document.getElementById('pin-toggle');
+    if (pin.type === 'password') { pin.type = 'text'; btn.textContent = '🙈'; }
+    else { pin.type = 'password'; btn.textContent = '👁'; }
+  });
+  document.getElementById('login-btn').addEventListener('click', login);
+  document.getElementById('login-pin').addEventListener('keydown', e => {
+    if (e.key === 'Enter') login();
+  });
+
+  initAuth();
+}
+
+init();
+</script>
+</body>
+</html>
