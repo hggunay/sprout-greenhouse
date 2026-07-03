@@ -625,6 +625,8 @@
 
 <!-- Context Menu (group) -->
 <div class="ctx-menu" id="ctx-group-menu">
+  <div class="ctx-item" id="ctx-group-select-all">☑️ Tümünü seç</div>
+  <div class="ctx-divider"></div>
   <div class="ctx-item" id="ctx-group-edit">✏️ Grubu düzenle</div>
   <div class="ctx-item danger" id="ctx-group-delete">🗑️ Grubu sil</div>
 </div>
@@ -1596,6 +1598,14 @@ function init() {
   });
 
   // Group context menu
+  document.getElementById('ctx-group-select-all').addEventListener('click', () => {
+    hideGroupContextMenu();
+    plants.filter(p => p.groupId === contextGroupId).forEach(p => {
+      multiSelected.add(p.id);
+    });
+    renderTable();
+    renderMultiBar();
+  });
   document.getElementById('ctx-group-edit').addEventListener('click', () => {
     hideGroupContextMenu(); openEditGroupSheet(contextGroupId);
   });
