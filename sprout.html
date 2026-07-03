@@ -435,29 +435,46 @@
 </head>
 <body>
 <!-- Login Screen -->
-<div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;align-items:center;justify-content:center;">
+<div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:1000;align-items:center;justify-content:center;">
   <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:32px 24px;width:300px;max-width:90vw;">
     <div style="font-size:32px;text-align:center;margin-bottom:8px;">🌿</div>
     <h2 style="text-align:center;font-size:18px;margin-bottom:4px;">Prof. Sprout's Greenhouse</h2>
-    <p style="text-align:center;font-size:12px;color:var(--text2);margin-bottom:24px;">Kullanıcı adı ve PIN ile giriş yap</p>
-    <div style="margin-bottom:12px;">
-      <label style="display:block;font-size:11px;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em;">Kullanıcı Adı</label>
-      <input id="login-username" type="text" placeholder="ör. green thumb" maxlength="20"
-        style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 12px;font-size:14px;font-family:'Space Grotesk',sans-serif;outline:none;">
+    <p id="login-subtitle" style="text-align:center;font-size:12px;color:var(--text2);margin-bottom:24px;">Kullanıcı adını gir</p>
+
+    <!-- Adım 1: Kullanıcı adı -->
+    <div id="login-step1">
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:11px;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em;">Kullanıcı Adı</label>
+        <input id="login-username" type="text" autocomplete="off" placeholder="ör. green thumb" maxlength="20"
+          style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 12px;font-size:14px;font-family:'Space Grotesk',sans-serif;outline:none;">
+      </div>
+      <div id="login-error-1" style="display:none;color:var(--warn);font-size:12px;margin-bottom:12px;text-align:center;"></div>
+      <button id="login-next-btn" style="width:100%;background:var(--accent);border:none;color:var(--text);border-radius:8px;padding:12px;font-size:14px;font-weight:600;font-family:'Space Grotesk',sans-serif;cursor:pointer;">
+        Devam
+      </button>
     </div>
-    <div style="margin-bottom:20px;">
-      <label style="display:block;font-size:11px;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em;">PIN (4 rakam)</label>
-      <div style="position:relative;">
-  <input id="login-pin" type="password" inputmode="numeric" placeholder="••••" maxlength="4"
-    style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 40px 9px 12px;font-size:18px;font-family:'JetBrains Mono',monospace;outline:none;letter-spacing:0.3em;">
-  <button id="pin-toggle" type="button"
-    style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text2);cursor:pointer;font-size:16px;padding:0;">👁</button>
-</div>
+
+    <!-- Adım 2: PIN -->
+    <div id="login-step2" style="display:none;">
+      <div id="login-user-badge" style="background:var(--bg3);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
+        <span id="login-user-badge-name"></span>
+        <button id="login-back-btn" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:12px;font-family:'Space Grotesk',sans-serif;">← Değiştir</button>
+      </div>
+      <div style="margin-bottom:20px;">
+        <label style="display:block;font-size:11px;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em;">PIN (4 rakam)</label>
+        <div style="position:relative;">
+          <input id="login-pin" type="password" inputmode="numeric" autocomplete="off" placeholder="••••" maxlength="4"
+            style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 40px 9px 12px;font-size:18px;font-family:'JetBrains Mono',monospace;outline:none;letter-spacing:0.3em;">
+          <button id="pin-toggle" type="button"
+            style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text2);cursor:pointer;font-size:16px;padding:0;">👁</button>
+        </div>
+      </div>
+      <div id="login-error-2" style="display:none;color:var(--warn);font-size:12px;margin-bottom:12px;text-align:center;"></div>
+      <button id="login-btn" style="width:100%;background:var(--accent);border:none;color:var(--text);border-radius:8px;padding:12px;font-size:14px;font-weight:600;font-family:'Space Grotesk',sans-serif;cursor:pointer;">
+        Giriş Yap
+      </button>
     </div>
-    <div id="login-error" style="display:none;color:var(--warn);font-size:12px;margin-bottom:12px;text-align:center;"></div>
-    <button id="login-btn" style="width:100%;background:var(--accent);border:none;color:var(--text);border-radius:8px;padding:12px;font-size:14px;font-weight:600;font-family:'Space Grotesk',sans-serif;cursor:pointer;">
-      Giriş Yap / Kayıt Ol
-    </button>
+
   </div>
 </div>
 <header>
@@ -675,14 +692,77 @@ function initAuth() {
     currentUser = saved;
     initApp();
   } else {
-    document.getElementById('login-screen').style.display = 'flex';
+    const screen = document.getElementById('login-screen');
+    screen.style.display = 'flex';
+    showLoginStep1();
   }
 }
 
+function showLoginStep1() {
+  document.getElementById('login-step1').style.display = '';
+  document.getElementById('login-step2').style.display = 'none';
+  document.getElementById('login-subtitle').textContent = 'Kullanıcı adını gir';
+  document.getElementById('login-error-1').style.display = 'none';
+  document.getElementById('login-username').value = '';
+  setTimeout(() => document.getElementById('login-username').focus(), 100);
+}
+
+function showLoginStep2(username, isNew) {
+  document.getElementById('login-step1').style.display = 'none';
+  document.getElementById('login-step2').style.display = '';
+  document.getElementById('login-user-badge-name').textContent = '👤 ' + username;
+  document.getElementById('login-subtitle').textContent = isNew
+    ? 'Yeni hesap — PIN belirle'
+    : 'Hoş geldin, ' + username + '!';
+  document.getElementById('login-error-2').style.display = 'none';
+  document.getElementById('login-pin').value = '';
+  setTimeout(() => document.getElementById('login-pin').focus(), 100);
+}
+
+function loginStep1() {
+  const username = document.getElementById('login-username').value.trim().toLowerCase().replace(/\s+/g, '_');
+  const errorEl = document.getElementById('login-error-1');
+  if (!username || username.length < 2) {
+    errorEl.textContent = 'Kullanıcı adı en az 2 karakter olmalı.';
+    errorEl.style.display = 'block'; return;
+  }
+  errorEl.style.display = 'none';
+  db.ref(`users/${username}/pin`).once('value').then(snap => {
+    const isNew = snap.val() === null;
+    showLoginStep2(username, isNew);
+  });
+}
+
 function login() {
-  const username = document.getElementById('login-username').value.trim().toLowerCase();
+  const username = document.getElementById('login-username').value.trim().toLowerCase().replace(/\s+/g, '_');
   const pin = document.getElementById('login-pin').value.trim();
-  const errorEl = document.getElementById('login-error');
+  const errorEl = document.getElementById('login-error-2');
+  if (!/^\d{4}$/.test(pin)) {
+    errorEl.textContent = 'PIN 4 rakam olmalı.';
+    errorEl.style.display = 'block'; return;
+  }
+  db.ref(`users/${username}/pin`).once('value').then(snap => {
+    const storedPin = snap.val();
+    if (storedPin === null) {
+      db.ref(`users/${username}/pin`).set(pin).then(() => {
+        localStorage.setItem('sg_user', username);
+        currentUser = username;
+        document.getElementById('login-screen').style.display = 'none';
+        initApp();
+      });
+    } else if (storedPin === pin) {
+      localStorage.setItem('sg_user', username);
+      currentUser = username;
+      document.getElementById('login-screen').style.display = 'none';
+      initApp();
+    } else {
+      errorEl.textContent = 'PIN yanlış. Tekrar dene.';
+      errorEl.style.display = 'block';
+      document.getElementById('login-pin').value = '';
+      document.getElementById('login-pin').focus();
+    }
+  });
+}
 
   if (!username || username.length < 2) {
     errorEl.textContent = 'Kullanıcı adı en az 2 karakter olmalı.';
@@ -719,15 +799,27 @@ function login() {
 }
 
 // ── STORAGE ──
+function encodeKey(key) { return key.replace(/\|/g, '__'); }
+function decodeKey(key) { return key.replace(/__/g, '|'); }
+
 function saveData() {
   if (!currentUser) return;
+  const encodedRecords = {};
+  for (const key of Object.keys(records)) {
+    encodedRecords[encodeKey(key)] = records[key];
+  }
   const data = {
     plants,
     groups,
-    records,
+    records: encodedRecords,
     collapsed: [...collapsedGroups]
   };
   db.ref(`users/${currentUser}/data`).set(data);
+  localStorage.setItem('sg_plants',  JSON.stringify(plants));
+  localStorage.setItem('sg_groups',  JSON.stringify(groups));
+  localStorage.setItem('sg_records', JSON.stringify(records));
+  localStorage.setItem('sg_collapsed', JSON.stringify([...collapsedGroups]));
+}
   // localStorage'ı da güncelle (offline yedek)
   localStorage.setItem('sg_plants',  JSON.stringify(plants));
   localStorage.setItem('sg_groups',  JSON.stringify(groups));
@@ -741,7 +833,11 @@ function loadData(callback) {
     if (data) {
       plants  = data.plants  || [];
       groups  = data.groups  || [];
-      records = data.records || {};
+      const rawRecords = data.records || {};
+      records = {};
+      for (const key of Object.keys(rawRecords)) {
+        records[decodeKey(key)] = rawRecords[key];
+      }
       collapsedGroups = new Set(data.collapsed || []);
     } else {
       // Firebase boş — localStorage'dan aktar (ilk geçiş)
@@ -1574,10 +1670,15 @@ function init() {
     if (pin.type === 'password') { pin.type = 'text'; btn.textContent = '🙈'; }
     else { pin.type = 'password'; btn.textContent = '👁'; }
   });
+  document.getElementById('login-next-btn').addEventListener('click', loginStep1);
+  document.getElementById('login-username').addEventListener('keydown', e => {
+    if (e.key === 'Enter') loginStep1();
+  });
   document.getElementById('login-btn').addEventListener('click', login);
   document.getElementById('login-pin').addEventListener('keydown', e => {
     if (e.key === 'Enter') login();
   });
+  document.getElementById('login-back-btn').addEventListener('click', showLoginStep1);
 
   initAuth();
 }
