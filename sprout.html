@@ -793,7 +793,7 @@ function saveData() {
   localStorage.setItem('sg_groups',  JSON.stringify(groups));
   localStorage.setItem('sg_records', JSON.stringify(records));
   localStorage.setItem('sg_collapsed', JSON.stringify([...collapsedGroups]));
-}
+
 
 function loadData(callback) {
   db.ref(`users/${currentUser}/data`).once('value').then(snap => {
