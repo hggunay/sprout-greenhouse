@@ -764,39 +764,7 @@ function login() {
   });
 }
 
-  if (!username || username.length < 2) {
-    errorEl.textContent = 'Kullanıcı adı en az 2 karakter olmalı.';
-    errorEl.style.display = 'block'; return;
-  }
-  if (!/^\d{4}$/.test(pin)) {
-    errorEl.textContent = 'PIN 4 rakam olmalı.';
-    errorEl.style.display = 'block'; return;
-  }
-
-  // Check if username exists in Firebase
-  db.ref(`users/${username}/pin`).once('value').then(snap => {
-    const storedPin = snap.val();
-    if (storedPin === null) {
-      // New user — register
-      db.ref(`users/${username}/pin`).set(pin).then(() => {
-        localStorage.setItem('sg_user', username);
-        currentUser = username;
-        document.getElementById('login-screen').style.display = 'none';
-        initApp();
-      });
-    } else if (storedPin === pin) {
-      // Existing user — correct PIN
-      localStorage.setItem('sg_user', username);
-      currentUser = username;
-      document.getElementById('login-screen').style.display = 'none';
-      initApp();
-    } else {
-      // Wrong PIN
-      errorEl.textContent = 'Bu kullanıcı adı alınmış, PIN yanlış.';
-      errorEl.style.display = 'block';
-    }
-  });
-}
+  
 
 // ── STORAGE ──
 function encodeKey(key) { return key.replace(/\|/g, '__'); }
