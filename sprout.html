@@ -37,6 +37,17 @@
     overscroll-behavior: none;
   }
 
+  @media (max-width: 768px) and (orientation: portrait) {
+    body.force-landscape {
+      position: fixed; top: 0; left: 0;
+      width: 100vh; height: 100vw;
+      transform: rotate(90deg);
+      transform-origin: top left;
+      translate: 0 -100%;
+      overflow-y: auto;
+    }
+  }
+
   /* ── HEADER ── */
   header {
     position: sticky; top: 0; z-index: 100;
@@ -62,6 +73,12 @@
     font-size: 15px; cursor: pointer; padding: 2px 4px; opacity: 0.7;
   }
   #logout-btn:hover { opacity: 1; color: var(--text); }
+  #rotate-btn {
+    background: none; border: none; color: var(--text2);
+    font-size: 15px; cursor: pointer; padding: 2px 4px; opacity: 0.7;
+  }
+  #rotate-btn:hover { opacity: 1; color: var(--text); }
+  #rotate-btn.active { color: var(--accent, #4a7c59); opacity: 1; }
 
   .month-nav { display: flex; align-items: center; gap: 4px; }
   .month-nav button {
@@ -501,6 +518,7 @@
     </div>
     <div class="user-info">
       <span id="current-user-label"></span>
+      <button id="rotate-btn" title="Yatay görünüm">⟳</button>
       <button id="logout-btn" title="Çıkış yap">⎋</button>
     </div>
   </div>
@@ -866,7 +884,7 @@ function pruneOldData() {
       else if (had) changed = true;
     }
   }
-  if (changed) localStorage.setItem('sg_records', JSON.stringify(records));
+  if (changed) { localStorage.setItem('sg_records', JSON.stringify(records)); saveData(); }
 }
 
 // ── DATE HELPERS ──
@@ -1550,6 +1568,17 @@ function init() {
   currentYear = now.getFullYear(); currentMonth = now.getMonth();
 
 document.getElementById('logout-btn').addEventListener('click', logout);
+
+  const rotateBtn = document.getElementById('rotate-btn');
+  if (localStorage.getItem('sg_landscape') === '1') {
+    document.body.classList.add('force-landscape');
+    rotateBtn.classList.add('active');
+  }
+  rotateBtn.addEventListener('click', () => {
+    const isActive = document.body.classList.toggle('force-landscape');
+    rotateBtn.classList.toggle('active', isActive);
+    localStorage.setItem('sg_landscape', isActive ? '1' : '0');
+  });
 
   // Month nav
   document.getElementById('prev-month').addEventListener('click', () => {
