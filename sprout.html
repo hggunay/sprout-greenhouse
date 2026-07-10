@@ -37,18 +37,19 @@
     overscroll-behavior: none;
   }
 
-  @media (max-width: 768px) and (orientation: portrait) {
-    html:has(body.force-landscape) {
-      overflow: hidden;
-    }
-    body.force-landscape {
-      position: fixed; top: 0; left: 0;
-      transform-origin: top left;
-      transform: rotate(90deg) translateY(-100%);
-      overflow-y: auto;
-      overflow-x: hidden;
-    }
+  
+
+  .rotate-hint {
+    display: none; align-items: center; justify-content: space-between;
+    gap: 8px; padding: 8px 14px; background: rgba(74,124,89,0.15);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px; color: var(--text2);
   }
+  .rotate-hint button {
+    background: none; border: none; color: var(--text2);
+    font-size: 14px; cursor: pointer; opacity: 0.7; padding: 2px 6px;
+  }
+  .rotate-hint button:hover { opacity: 1; }
 
   /* ── HEADER ── */
   header {
@@ -510,6 +511,10 @@
 
   </div>
 </div>
+<div id="rotate-hint" class="rotate-hint">
+  <span>📱 Tüm ayı görmek için telefonu yatay çevir</span>
+  <button id="rotate-hint-close">✕</button>
+</div>
 <header>
   <div class="header-top">
     <span class="app-name" id="app-name">🌿 Prof. Sprout's Greenhouse</span>
@@ -520,7 +525,6 @@
     </div>
     <div class="user-info">
       <span id="current-user-label"></span>
-      <button id="rotate-btn" title="Yatay görünüm">⟳</button>
       <button id="logout-btn" title="Çıkış yap">⎋</button>
     </div>
   </div>
@@ -1571,28 +1575,20 @@ function init() {
 
 document.getElementById('logout-btn').addEventListener('click', logout);
 
-  const rotateBtn = document.getElementById('rotate-btn');
-  function applyLandscapeSize() {
-    if (document.body.classList.contains('force-landscape')) {
-      document.body.style.width = window.innerHeight + 'px';
-      document.body.style.height = window.innerWidth + 'px';
-    } else {
-      document.body.style.width = '';
-      document.body.style.height = '';
-    }
+  const rotateHint = document.getElementById('rotate-hint');
+  const rotateHintClose = document.getElementById('rotate-hint-close');
+  function checkOrientationHint() {
+    const isMobile = window.innerWidth <= 768;
+    const isPortrait = window.innerHeight > window.innerWidth;
+    const dismissed = localStorage.getItem('sg_hint_dismissed') === '1';
+    rotateHint.style.display = (isMobile && isPortrait && !dismissed) ? 'flex' : 'none';
   }
-  if (localStorage.getItem('sg_landscape') === '1') {
-    document.body.classList.add('force-landscape');
-    rotateBtn.classList.add('active');
-    applyLandscapeSize();
-  }
-  rotateBtn.addEventListener('click', () => {
-    const isActive = document.body.classList.toggle('force-landscape');
-    rotateBtn.classList.toggle('active', isActive);
-    localStorage.setItem('sg_landscape', isActive ? '1' : '0');
-    applyLandscapeSize();
+  rotateHintClose.addEventListener('click', () => {
+    localStorage.setItem('sg_hint_dismissed', '1');
+    rotateHint.style.display = 'none';
   });
-  window.addEventListener('resize', applyLandscapeSize);
+  window.addEventListener('resize', checkOrientationHint);
+  checkOrientationHint();
 
   // Month nav
   document.getElementById('prev-month').addEventListener('click', () => {
