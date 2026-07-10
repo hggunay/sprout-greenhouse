@@ -43,7 +43,6 @@
     }
     body.force-landscape {
       position: fixed; top: 0; left: 0;
-      width: 100dvh; height: 100dvw;
       transform-origin: top left;
       transform: rotate(90deg) translateY(-100%);
       overflow-y: auto;
@@ -1573,15 +1572,27 @@ function init() {
 document.getElementById('logout-btn').addEventListener('click', logout);
 
   const rotateBtn = document.getElementById('rotate-btn');
+  function applyLandscapeSize() {
+    if (document.body.classList.contains('force-landscape')) {
+      document.body.style.width = window.innerHeight + 'px';
+      document.body.style.height = window.innerWidth + 'px';
+    } else {
+      document.body.style.width = '';
+      document.body.style.height = '';
+    }
+  }
   if (localStorage.getItem('sg_landscape') === '1') {
     document.body.classList.add('force-landscape');
     rotateBtn.classList.add('active');
+    applyLandscapeSize();
   }
   rotateBtn.addEventListener('click', () => {
     const isActive = document.body.classList.toggle('force-landscape');
     rotateBtn.classList.toggle('active', isActive);
     localStorage.setItem('sg_landscape', isActive ? '1' : '0');
+    applyLandscapeSize();
   });
+  window.addEventListener('resize', applyLandscapeSize);
 
   // Month nav
   document.getElementById('prev-month').addEventListener('click', () => {
