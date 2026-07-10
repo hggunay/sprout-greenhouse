@@ -55,6 +55,14 @@
     color: var(--text); opacity: 0.85;
   }
 
+  .user-info { display: flex; align-items: center; gap: 6px; margin-left: 10px; }
+  #current-user-label { font-size: 12px; color: var(--text2); opacity: 0.8; }
+  #logout-btn {
+    background: none; border: none; color: var(--text2);
+    font-size: 15px; cursor: pointer; padding: 2px 4px; opacity: 0.7;
+  }
+  #logout-btn:hover { opacity: 1; color: var(--text); }
+
   .month-nav { display: flex; align-items: center; gap: 4px; }
   .month-nav button {
     background: none; border: none; color: var(--text2);
@@ -490,6 +498,10 @@
       <button id="prev-month">‹</button>
       <button id="month-label" class="month-label-btn">—</button>
       <button id="next-month">›</button>
+    </div>
+    <div class="user-info">
+      <span id="current-user-label"></span>
+      <button id="logout-btn" title="Çıkış yap">⎋</button>
     </div>
   </div>
   <div id="date-picker" class="date-picker" style="display:none">
@@ -1520,15 +1532,24 @@ function initApp() {
   const now = new Date();
   currentYear = now.getFullYear(); currentMonth = now.getMonth();
   console.log('initApp called, currentUser:', currentUser);
+  document.getElementById('current-user-label').textContent = '👤 ' + currentUser;
   loadData(() => {
     console.log('loadData done, plants:', plants.length);
     render();
   });
 }
+
+function logout() {
+  if (!confirm('Çıkış yapmak istediğine emin misin?')) return;
+  localStorage.removeItem('sg_user');
+  location.reload();
+}
 // ── INIT ──
 function init() {
   const now = new Date();
   currentYear = now.getFullYear(); currentMonth = now.getMonth();
+
+document.getElementById('logout-btn').addEventListener('click', logout);
 
   // Month nav
   document.getElementById('prev-month').addEventListener('click', () => {
