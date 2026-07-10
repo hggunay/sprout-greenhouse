@@ -937,7 +937,7 @@ function renderTable() {
   const grouped = groups.map(g => ({
     group: g,
     plants: plants.filter(p => p.groupId === g.id)
-  })).filter(s => s.plants.length > 0);
+  }));
 
   const ungrouped = plants.filter(p => !p.groupId);
 
