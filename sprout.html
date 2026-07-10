@@ -972,6 +972,7 @@ function renderTable() {
       tr.className = 'plant-row';
       tr.dataset.plantId = plant.id;
       if (groupObj && isCollapsed) tr.classList.add('group-hidden');
+      if (multiSelected.has(plant.id)) tr.classList.add('multi-selected');
 
       // 3-banded row zebra (reset per group)
       const rowBand = Math.floor(rowIdx / 3) % 2;
