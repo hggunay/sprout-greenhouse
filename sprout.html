@@ -1044,7 +1044,7 @@ function renderTable() {
         if (rec && ((rec.actions?.length > 0) || rec.note)) {
           const div = document.createElement('div');
           div.className = 'cell-content';
-          const emojis = rec.actions.filter(a => a !== 'note').map(a => ACTIONS[a]?.emoji || '').join('');
+          const emojis = (rec.actions || []).filter(a => a !== 'note').map(a => ACTIONS[a]?.emoji || '').join('');
           div.textContent = emojis + (rec.note ? '📝' : '');
           td.appendChild(div);
         }
