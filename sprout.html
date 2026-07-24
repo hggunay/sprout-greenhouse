@@ -918,15 +918,10 @@ function plantColor(plant) {
 
 // ── RENDER ──
 function render() {
-  const tableWrap = document.getElementById('table-wrap');
-  const scrollLeft = tableWrap ? tableWrap.scrollLeft : 0;
-  
   document.getElementById('month-label').textContent = monthLabel(currentYear, currentMonth);
   renderTable();
   renderMultiBar();
   applyFilter(activeFilter, false);
-  
-  if (tableWrap) tableWrap.scrollLeft = scrollLeft;
 }
 
 function renderTable() {
