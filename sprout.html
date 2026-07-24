@@ -1061,14 +1061,7 @@ function renderTable() {
             }
             handleCellClick(e, plant.id, dateStr, td);
           });
-          td.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            const r = records[key];
-            if (r?.note && (r.actions || []).filter(a => a !== 'note').length === 0) {
-              hideNotePopup(); showNotePopup(e, key, r.note); return;
-            }
-            handleCellClick(e, plant.id, dateStr, td);
-          });
+          
           addLongPress(td, () => handleCellLongPress(plant.id, dateStr));
         }
         tr.appendChild(td);
