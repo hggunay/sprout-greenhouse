@@ -1052,7 +1052,7 @@ function renderTable() {
         if (!isFuture) {
           td.addEventListener('click', (e) => {
             const r = records[key];
-            if (r?.note && r.actions.filter(a => a !== 'note').length === 0) {
+            if (r?.note && (r.actions || []).filter(a => a !== 'note').length === 0) {
               hideNotePopup(); showNotePopup(e, key, r.note); return;
             }
             handleCellClick(e, plant.id, dateStr, td);
