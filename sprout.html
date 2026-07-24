@@ -1308,13 +1308,7 @@ function showGroupContextMenu(groupId, el) {
   contextGroupId = groupId;
   const menu = document.getElementById('ctx-group-menu');
   const rect = el.getBoundingClientRect();
-  const menuHeight = 120;
-const spaceBelow = window.innerHeight - rect.bottom;
-if (spaceBelow < menuHeight) {
-  menu.style.top = (rect.top - menuHeight) + 'px';
-} else {
-  menu.style.top = (rect.bottom + 2) + 'px';
-}
+  menu.style.top  = (rect.bottom + 2) + 'px';
 menu.style.left = '14px';
   menu.classList.add('open');
 }
