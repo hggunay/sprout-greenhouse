@@ -1149,10 +1149,10 @@ function handleCellClick(e, plantId, date, td) {
     return;
   }
   if (actionCount === 0 && !hasNote) {
-    ripple(e, td); addRecord(plantId, date, 'water'); renderTable(); return;
+    ripple(e, td); addRecord(plantId, date, 'water'); render(); return;
   }
   if (actionCount === 1 && !hasNote) {
-    delete records[key]; saveData(); renderTable(); return;
+    delete records[key]; saveData(); render(); return;
   }
   openActionSheet(plantId, date, date, rec);
 }
