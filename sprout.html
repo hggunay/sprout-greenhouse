@@ -728,6 +728,10 @@ let selectedActions = new Set();
 let selectedColor  = COLORS[0];
 let selectedGroupColor = COLORS[0];
 let datePickerYear = null;
+// Tabloyu bugünün sütununa kaydırma isteği. Yalnızca uygulama ilk açıldığında ve
+// ay değiştirildiğinde true yapılır. Her render'da kaydırılırsa, bir hücreye kayıt
+// girdikten sonra tablo bugüne zıplayıp kullanıcının kaldığı yeri kaybettiriyor.
+let scrollToTodayNext = true;
 
 // ── AUTH ──
 function initAuth() {
@@ -1082,10 +1086,12 @@ function renderTable() {
   grouped.forEach(s => renderGroup(s.group, s.plants));
   if (ungrouped.length > 0) renderGroup(null, ungrouped);
 
-  // Scroll to today
-  if (currentYear === new Date().getFullYear() && currentMonth === new Date().getMonth()) {
+  // Scroll to today — sadece istendiğinde (ilk açılış / ay değişimi)
+  if (scrollToTodayNext &&
+      currentYear === new Date().getFullYear() && currentMonth === new Date().getMonth()) {
     requestAnimationFrame(scrollToToday);
   }
+  scrollToTodayNext = false;
 }
 
 function scrollToToday() {
@@ -1353,7 +1359,8 @@ function renderDatePicker() {
     if (isFuture)  btn.classList.add('future');
     if (isCurrent) btn.classList.add('current');
     if (!isFuture) btn.addEventListener('click', () => {
-      currentYear = datePickerYear; currentMonth = i; closeDatePicker(); render();
+      currentYear = datePickerYear; currentMonth = i; closeDatePicker();
+      scrollToTodayNext = true; render();
     });
     container.appendChild(btn);
   });
@@ -1569,6 +1576,7 @@ function ripple(e, td) {
 function initApp() {
   const now = new Date();
   currentYear = now.getFullYear(); currentMonth = now.getMonth();
+  scrollToTodayNext = true;
   console.log('initApp called, currentUser:', currentUser);
   document.getElementById('current-user-label').textContent = '👤 ' + currentUser;
   loadData(() => {
@@ -1608,6 +1616,7 @@ document.getElementById('logout-btn').addEventListener('click', logout);
   document.getElementById('prev-month').addEventListener('click', () => {
     closeDatePicker();
     if (currentMonth === 0) { currentMonth = 11; currentYear--; } else currentMonth--;
+    scrollToTodayNext = true;
     render();
   });
   document.getElementById('next-month').addEventListener('click', () => {
@@ -1615,6 +1624,7 @@ document.getElementById('logout-btn').addEventListener('click', logout);
     const n = new Date();
     if (currentYear === n.getFullYear() && currentMonth === n.getMonth()) return;
     if (currentMonth === 11) { currentMonth = 0; currentYear++; } else currentMonth++;
+    scrollToTodayNext = true;
     render();
   });
   document.getElementById('month-label').addEventListener('click', openDatePicker);
