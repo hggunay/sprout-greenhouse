@@ -827,17 +827,12 @@ function saveData() {
     collapsed: [...collapsedGroups]
   };
   db.ref(`users/${currentUser}/data`).set(data);
-  localStorage.setItem('sg_plants',  JSON.stringify(plants));
-  localStorage.setItem('sg_groups',  JSON.stringify(groups));
-  localStorage.setItem('sg_records', JSON.stringify(records));
-  localStorage.setItem('sg_collapsed', JSON.stringify([...collapsedGroups]));
-}
   // localStorage'ı da güncelle (offline yedek)
   localStorage.setItem('sg_plants',  JSON.stringify(plants));
   localStorage.setItem('sg_groups',  JSON.stringify(groups));
   localStorage.setItem('sg_records', JSON.stringify(records));
   localStorage.setItem('sg_collapsed', JSON.stringify([...collapsedGroups]));
-
+}
 
 function loadData(callback) {
   db.ref(`users/${currentUser}/data`).once('value').then(snap => {
@@ -867,9 +862,23 @@ function loadData(callback) {
         if (plants.length) saveData();
       } catch(e) { plants = []; groups = []; records = {}; }
     }
+    normalizeRecords();
     pruneOldData();
     if (callback) callback();
   });
+}
+
+// Firebase boş dizileri saklamaz. Sadece not yazılmış (hiç işaret konmamış) bir hücre
+// { actions: [], note: "..." } olarak gönderiliyor ama { note: "..." } olarak geri geliyor —
+// yani actions alanı yok oluyor. Kodun birçok yeri rec.actions'ın dizi olduğunu varsaydığı
+// için (pruneOldData, filtreler, hücre tıklaması, not silme) burada bir kez garantiye alıyoruz.
+// Hiçbir kayıt silinmiyor, hiçbir veri değişmiyor — sadece eksik alan boş diziyle tamamlanıyor.
+function normalizeRecords() {
+  for (const key of Object.keys(records)) {
+    const rec = records[key];
+    if (!rec || typeof rec !== 'object') continue;
+    if (!Array.isArray(rec.actions)) rec.actions = [];
+  }
 }
 
 function pruneOldData() {
