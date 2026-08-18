@@ -1559,11 +1559,14 @@ function catFilterTest() {
     const esik = new Date();
     esik.setDate(esik.getDate() - (GORULMEDI_GUN - 1)); // bugün dahil N gün
     const esikStr = cellDate(esik.getFullYear(), esik.getMonth(), esik.getDate());
+    const bugun = todayStr();
     // Herhangi bir kayıt "görüldü" sayılıyor — sadece 👁 değil.
+    // ÜST SINIR ŞART: kedide gelecek tarihe plan girilebiliyor; 26 Ağustos'a
+    // yazılmış bir aşı hatırlatıcısı kediyi bugün "görülmüş" saymamalı.
     const gorulen = new Set();
     for (const key of Object.keys(records)) {
       const [pid, date] = key.split('|');
-      if (date && date >= esikStr) gorulen.add(pid);
+      if (date && date >= esikStr && date <= bugun) gorulen.add(pid);
     }
     return (pid) => !gorulen.has(pid);
   }

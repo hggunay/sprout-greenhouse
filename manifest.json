@@ -1,6 +1,6 @@
 {
-  "name": "Prof. Sprout's Greenhouse",
-  "short_name": "Sprout",
+  "name": "Keeper's Log",
+  "short_name": "Keeper's Log",
   "icons": [
     {
       "src": "sprout.png",
@@ -10,6 +10,6 @@
   ],
   "start_url": "sprout.html",
   "display": "standalone",
-  "background_color": "#0f1a12",
-  "theme_color": "#0f1a12"
+  "background_color": "#141210",
+  "theme_color": "#141210"
 }
