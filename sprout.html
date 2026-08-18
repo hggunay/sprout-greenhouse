@@ -3,27 +3,53 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Prof. Sprout's Greenhouse</title>
+<title>Keeper's Log</title>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+  /* ── BİTKİ MODU (varsayılan tema) ──
+     Vurgu rengi iki biçimde duruyor: --accent doğrudan kullanım için,
+     --accent-rgb ise rgba(...) içinde saydamlıkla karıştırmak için.
+     Eskiden bu yeşil 12 yere elle yazılmıştı; mod değiştirince yeşil
+     lekeler kaldığı için hepsi değişkene çevrildi. Yeni bir yerde vurgu
+     rengi gerekiyorsa rgba(var(--accent-rgb), x) yaz, sabit renk yazma. */
   :root {
-    --bg:        #0f1a12;
-    --bg2:       #182a1c;
-    --bg3:       #2a3a2e;
-    --accent:    #4a7c59;
-    --accent2:   #3d6649;
-    --text:      #e8e0d0;
-    --text2:     #9aaa9a;
-    --warn:      #c9743a;
-    --border:    #2e3f32;
-    --cell-w:    38px;
-    --plant-col: 140px;
-    --row-h:     44px;
-    --zebra-col: rgba(255,255,255,0.028);
-    --zebra-row: rgba(255,255,255,0.022);
+    --bg:         #0f1a12;
+    --bg2:        #182a1c;
+    --bg3:        #2a3a2e;
+    --accent:     #4a7c59;
+    --accent-rgb: 74,124,89;
+    --accent-lit: #5a9c6f;   /* birincil butonun :hover hâli */
+    --accent2:    #3d6649;
+    --brand:      #7fb08d;   /* üstteki ana başlık — mod başlığından farklı ton */
+    --text:       #e8e0d0;
+    --text2:      #9aaa9a;
+    --warn:       #c9743a;
+    --border:     #2e3f32;
+    --cell-w:     38px;
+    --plant-col:  140px;
+    --row-h:      44px;
+    --zebra-col:  rgba(255,255,255,0.028);
+    --zebra-row:  rgba(255,255,255,0.022);
+  }
+
+  /* ── KEDİ MODU (Hagrid's Hut) — toprak sarısı / kiremit ──
+     Yalnızca renkler eziliyor; ölçü değişkenleri (--cell-w vb.) ortak. */
+  body.mode-cat {
+    --bg:         #171009;
+    --bg2:        #241a10;
+    --bg3:        #3a2a19;
+    --accent:     #c17a3f;
+    --accent-rgb: 193,122,63;
+    --accent-lit: #d68f52;
+    --accent2:    #96602f;
+    --brand:      #d9a44e;
+    --text:       #f2e6d2;
+    --text2:      #b39c7d;
+    --warn:       #d0453a;
+    --border:     #3d2d1c;
   }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -41,7 +67,7 @@
 
   .rotate-hint {
     display: none; align-items: center; justify-content: space-between;
-    gap: 8px; padding: 8px 14px; background: rgba(74,124,89,0.15);
+    gap: 8px; padding: 8px 14px; background: rgba(var(--accent-rgb),0.15);
     border-bottom: 1px solid var(--border);
     font-size: 12px; color: var(--text2);
   }
@@ -61,29 +87,52 @@
 
   .header-top {
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 8px;
+    margin-bottom: 8px; gap: 8px;
   }
 
+  /* Başlık iki katlı: üstte ana başlık (Keeper's Log, moda göre renk
+     değiştirir), altında o modun başlığı. Ayrı bir satır açmak yerine alt
+     alta konuldu — yapışkan başlık büyürse telefonda tablo kısalıyor. */
+  .brand-stack {
+    display: flex; flex-direction: column; gap: 1px;
+    min-width: 0; overflow: hidden;
+  }
+  .brand {
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--brand); line-height: 1.1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
   .app-name {
     font-size: 15px; font-weight: 600; letter-spacing: 0.02em;
-    color: var(--text); opacity: 0.85;
+    color: var(--text); opacity: 0.85; line-height: 1.2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  /* Dar ekranda başlık satırı zaten sıkışıktı; mod düğmesi eklenince
+     kullanıcı adını gizleyip yerini başlığa bırakıyoruz. */
+  @media (max-width: 540px) {
+    .app-name { font-size: 13px; }
+    #current-user-label { display: none; }
+    .month-label-btn { min-width: 88px; font-size: 12px; }
   }
 
-  .user-info { display: flex; align-items: center; gap: 6px; margin-left: 10px; }
+  /* Ay gezinmesi ve kullanıcı bloğu sabit kalsın; daralan taraf başlık olsun. */
+  .user-info { display: flex; align-items: center; gap: 6px; margin-left: 10px; flex-shrink: 0; }
   #current-user-label { font-size: 12px; color: var(--text2); opacity: 0.8; }
   #logout-btn {
     background: none; border: none; color: var(--text2);
     font-size: 20px; cursor: pointer; padding: 6px 8px; opacity: 0.7;
   }
   #logout-btn:hover { opacity: 1; color: var(--text); }
-  #rotate-btn {
+  /* Mod değiştirme düğmesi (bitki ↔ kedi). Bu stiller eskiden hiç
+     kullanılmayan bir #rotate-btn içindi; boşa duracağına buraya bağlandı. */
+  #mode-btn {
     background: none; border: none; color: var(--text2);
     font-size: 20px; cursor: pointer; padding: 6px 8px; opacity: 0.7;
   }
-  #rotate-btn:hover { opacity: 1; color: var(--text); }
-  #rotate-btn.active { color: var(--accent, #4a7c59); opacity: 1; }
+  #mode-btn:hover { opacity: 1; color: var(--text); }
 
-  .month-nav { display: flex; align-items: center; gap: 4px; }
+  .month-nav { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
   .month-nav button {
     background: none; border: none; color: var(--text2);
     cursor: pointer; padding: 4px 6px; border-radius: 4px;
@@ -203,7 +252,7 @@
 
   /* ── PLANT ROWS ── */
   tbody tr.plant-row { height: var(--row-h); }
-  tbody tr.plant-row:hover td { background: rgba(74,124,89,0.06); }
+  tbody tr.plant-row:hover td { background: rgba(var(--accent-rgb),0.06); }
   tbody tr.plant-row:hover td.plant-name-cell { background: var(--bg); }
   tbody tr.filtered-out { display: none; }
   tbody tr.group-hidden { display: none; }
@@ -217,25 +266,29 @@
     user-select: none; -webkit-user-select: none;
     transition: background 0.1s;
   }
-  td:active { background: rgba(74,124,89,0.15); }
+  td:active { background: rgba(var(--accent-rgb),0.15); }
 
-  td.today-col { background: rgba(74,124,89,0.08); }
+  td.today-col { background: rgba(var(--accent-rgb),0.08); }
   td.future-col { opacity: 0.35; cursor: default; }
+  /* Kedi modunda gelecek gün: tıklanabilir (plan/hatırlatıcı), ama yapılmış
+     işten ayırt edilsin diye soluk. Bitki modunda bu sınıf hiç kullanılmıyor. */
+  td.plan-col { opacity: 0.62; }
+  thead th.plan-head { opacity: 0.6; }
 
   /* zebra columns (5-banded) */
   td.col-zebra { background: var(--zebra-col); }
-  td.col-zebra.today-col { background: rgba(74,124,89,0.11); }
+  td.col-zebra.today-col { background: rgba(var(--accent-rgb),0.11); }
 
   /* zebra rows (3-banded, reset per group) */
   tr.plant-row.row-zebra td { background: var(--zebra-row); }
   tr.plant-row.row-zebra td.plant-name-cell { background: var(--bg); }
-  tr.plant-row.row-zebra td.today-col { background: rgba(74,124,89,0.10); }
-  tr.plant-row.row-zebra:hover td { background: rgba(74,124,89,0.07); }
+  tr.plant-row.row-zebra td.today-col { background: rgba(var(--accent-rgb),0.10); }
+  tr.plant-row.row-zebra:hover td { background: rgba(var(--accent-rgb),0.07); }
   tr.plant-row.row-zebra:hover td.plant-name-cell { background: var(--bg); }
 
   /* multi select */
-  tbody tr.multi-selected td { background: rgba(74,124,89,0.07); }
-  tbody tr.multi-selected td.plant-name-cell { background: rgba(74,124,89,0.15) !important; }
+  tbody tr.multi-selected td { background: rgba(var(--accent-rgb),0.07); }
+  tbody tr.multi-selected td.plant-name-cell { background: rgba(var(--accent-rgb),0.15) !important; }
 
   td.plant-name-cell {
     position: sticky; left: 0; z-index: 10;
@@ -250,18 +303,20 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     min-width: 0; flex: 1;
   }
-  }
 
   .cell-content {
     font-size: 13px; line-height: 1;
     display: flex; align-items: center; justify-content: center;
     flex-wrap: wrap; gap: 1px;
   }
+  /* Kedi modunda bir güne 8 işleme kadar işaret konabiliyor; üçten
+     fazlası 38px'lik hücreye sığmadığı için punto küçülüyor. */
+  .cell-content.dense { font-size: 10px; }
 
   /* ripple */
   .ripple {
     position: absolute; border-radius: 50%;
-    background: rgba(74,124,89,0.45); transform: scale(0);
+    background: rgba(var(--accent-rgb),0.45); transform: scale(0);
     animation: ripple-anim 0.35s ease-out forwards; pointer-events: none;
   }
   @keyframes ripple-anim { to { transform: scale(4); opacity: 0; } }
@@ -371,7 +426,7 @@
     border-radius: 8px; padding: 11px; cursor: pointer; font-size: 14px;
     font-weight: 600; font-family: 'Space Grotesk', sans-serif; transition: background 0.15s;
   }
-  .btn-primary:hover { background: #5a9c6f; }
+  .btn-primary:hover { background: var(--accent-lit); }
   .btn-secondary {
     background: var(--bg3); border: 1px solid var(--border); color: var(--text2);
     border-radius: 8px; padding: 11px 16px; cursor: pointer; font-size: 14px;
@@ -471,8 +526,8 @@
 <!-- Login Screen -->
 <div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:1000;align-items:center;justify-content:center;">
   <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:32px 24px;width:300px;max-width:90vw;">
-    <div style="font-size:32px;text-align:center;margin-bottom:8px;">🌿</div>
-    <h2 style="text-align:center;font-size:18px;margin-bottom:4px;">Prof. Sprout's Greenhouse</h2>
+    <div style="font-size:32px;text-align:center;margin-bottom:8px;">🗝️</div>
+    <h2 style="text-align:center;font-size:18px;margin-bottom:4px;">Keeper's Log</h2>
     <p id="login-subtitle" style="text-align:center;font-size:12px;color:var(--text2);margin-bottom:24px;">Kullanıcı adını gir</p>
 
     <!-- Adım 1: Kullanıcı adı -->
@@ -517,7 +572,10 @@
 </div>
 <header>
   <div class="header-top">
-    <span class="app-name" id="app-name">🌿 Prof. Sprout's Greenhouse</span>
+    <div class="brand-stack">
+      <span class="brand" id="brand-name">Keeper's Log</span>
+      <span class="app-name" id="app-name">🌿 Prof. Sprout's Greenhouse</span>
+    </div>
     <div class="month-nav">
       <button id="prev-month">‹</button>
       <button id="month-label" class="month-label-btn">—</button>
@@ -525,6 +583,7 @@
     </div>
     <div class="user-info">
       <span id="current-user-label"></span>
+      <button id="mode-btn" title="Mod değiştir">🐈</button>
       <button id="logout-btn" title="Çıkış yap">⎋</button>
     </div>
   </div>
@@ -536,19 +595,14 @@
     </div>
     <div class="date-picker-months" id="dp-months"></div>
   </div>
-  <div class="filters">
-    <button class="filter-btn" data-filter="water-heavy">💧 Çok sulanan</button>
-    <button class="filter-btn" data-filter="water-light">🌵 Az sulanan</button>
-    <button class="filter-btn" data-filter="repotted">🔄 Saksı değişti</button>
-    <button class="filter-btn" data-filter="fertilized">🌱 Gübrelenmiş</button>
-    <button class="filter-btn" data-filter="all">Tümü</button>
-  </div>
+  <!-- Filtreler moda göre değiştiği için JS üretiyor (bkz. renderFilters). -->
+  <div class="filters" id="filters"></div>
 </header>
 
 <div class="main-content">
   <div id="empty-state" class="empty-state" style="display:none">
-    <div class="big">🌱</div>
-    <p>Henüz bitki yok. Aşağıdaki + butonuna dokun ve ilk bitkini ekle.</p>
+    <div class="big" id="empty-emoji">🌱</div>
+    <p id="empty-text">Henüz bitki yok. Aşağıdaki + butonuna dokun ve ilk bitkini ekle.</p>
   </div>
   <div class="table-container" id="table-wrap">
     <table id="main-table">
@@ -562,7 +616,7 @@
 <div class="add-bar">
   <div class="add-bar-left">
     <div class="multi-select-info" id="multi-info">
-      <span><span class="multi-count" id="multi-count">0</span> bitki seçildi</span>
+      <span><span class="multi-count" id="multi-count">0</span> <span id="multi-noun">bitki</span> seçildi</span>
       <button class="btn-cancel-multi" id="btn-cancel-multi">İptal</button>
     </div>
   </div>
@@ -638,14 +692,8 @@
   <div class="sheet">
     <div class="sheet-handle"></div>
     <h2 id="action-title">İşlem seç</h2>
-    <div class="action-grid">
-      <div class="action-item" data-action="water"><span class="emoji">💧</span><span class="label">Sulama</span></div>
-      <div class="action-item" data-action="fertilize"><span class="emoji">🌱</span><span class="label">Gübre</span></div>
-      <div class="action-item" data-action="prune"><span class="emoji">✂️</span><span class="label">Budama</span></div>
-      <div class="action-item" data-action="repot"><span class="emoji">🔄</span><span class="label">Saksı/toprak</span></div>
-      <div class="action-item" data-action="problem"><span class="emoji">🐛</span><span class="label">Sorun</span></div>
-      <div class="action-item" data-action="note"><span class="emoji">📝</span><span class="label">Not</span></div>
-    </div>
+    <!-- İşlem düğmeleri moda göre değiştiği için JS üretiyor (bkz. renderActionGrid). -->
+    <div class="action-grid" id="action-grid"></div>
     <div class="note-section" id="note-section" style="display:none">
       <div class="field">
         <label>Not</label>
@@ -691,7 +739,7 @@ firebase.initializeApp(FIREBASE_CONFIG);
 const db = firebase.database();
 
 let currentUser = null; // aktif kullanıcı adı
-const APP_NAME = "Prof. Sprout's Greenhouse";
+const APP_NAME = "Keeper's Log"; // her iki modun üstünde duran ana başlık
 
 const COLORS = [
   '#5a9e6f','#7dbf8e','#4a90d9','#a78bfa','#f97316',
@@ -699,14 +747,101 @@ const COLORS = [
   '#d97706','#06b6d4'
 ];
 
-const ACTIONS = {
-  water:     { emoji:'💧', label:'Sulama' },
-  fertilize: { emoji:'🌱', label:'Gübre' },
-  prune:     { emoji:'✂️', label:'Budama' },
-  repot:     { emoji:'🔄', label:'Saksı/toprak' },
-  problem:   { emoji:'🐛', label:'Sorun' },
-  note:      { emoji:'📝', label:'Not' }
+// ── MODLAR ──
+// Uygulama iki "oda"dan oluşuyor: bitkiler ve kediler. İkisi aynı tabloyu, aynı
+// grup / çoklu seçim / not / uzun basma mantığını kullanıyor. Modlar arasında
+// farklı olan tek şey aşağıdaki tablo: hangi Firebase düğümüne yazıldığı, hangi
+// işlemlerin bulunduğu, filtreler, tema sınıfı ve ekrandaki metinler.
+// Üçüncü bir mod istenirse buraya üçüncü bir kayıt yazmak yeterli — kodun
+// geri kalanına dokunmak gerekmez.
+const MODES = {
+  plant: {
+    node: 'data',   // users/<kullanıcı>/data — MEVCUT bitki verisi, hiç taşınmadı
+    ls:   'sg_',    // localStorage öneki (çevrimdışı yedek)
+    title: "🌿 Prof. Sprout's Greenhouse",
+    switchIcon:  '🐈',                        // düğme karşı moda geçirir
+    switchTitle: "Hagrid's Hut'a geç",
+    noun: 'Bitki', nounLower: 'bitki', nounAcc: 'bitkiyi', nounPlural: 'Bitkiler',
+    emptyEmoji: '🌱',
+    emptyText: 'Henüz bitki yok. Aşağıdaki + butonuna dokun ve ilk bitkini ekle.',
+    namePh:  'ör. Monstera, Büyük Kaktüs…',
+    notePh:  'ör. balkon, büyük saksı…',
+    groupPh: 'ör. Balkondakiler, Saksılar…',
+    defaultAction: 'water',  // boş hücreye tek dokunuş bunu işler
+    prune: true,             // eski kayıtlar budanır (bkz. pruneOldData)
+    allowFuture: false,      // bitkiyi geçmişe sulayamazsın, geleceğe de
+    actions: {
+      water:     { emoji:'💧', label:'Sulama' },
+      fertilize: { emoji:'🌱', label:'Gübre' },
+      prune:     { emoji:'✂️', label:'Budama' },
+      repot:     { emoji:'🔄', label:'Saksı/toprak' },
+      problem:   { emoji:'🐛', label:'Sorun' },
+      note:      { emoji:'📝', label:'Not' }
+    },
+    // Bitki filtreleri bugünden geriye KAYAN pencereye bakar.
+    filters: [
+      { id:'water-heavy', label:'💧 Çok sulanan' },
+      { id:'water-light', label:'🌵 Az sulanan' },
+      { id:'repotted',    label:'🔄 Saksı değişti' },
+      { id:'fertilized',  label:'🌱 Gübrelenmiş' },
+      { id:'all',         label:'Tümü' }
+    ]
+  },
+  cat: {
+    node: 'cats',      // users/<kullanıcı>/cats — YENİ düğüm, bitki verisine dokunmaz
+    ls:   'sg_cat_',
+    title: "🛖 Hagrid's Hut",
+    switchIcon:  '🌿',
+    switchTitle: "Prof. Sprout's Greenhouse'a geç",
+    noun: 'Kedi', nounLower: 'kedi', nounAcc: 'kediyi', nounPlural: 'Kediler',
+    emptyEmoji: '🐈',
+    emptyText: 'Henüz kedi yok. Aşağıdaki + butonuna dokun ve ilk kedini ekle.',
+    namePh:  'ör. Pamuk, Kara Dörtlü…',
+    notePh:  'ör. dışarıda dolaşır, çipli…',
+    groupPh: 'ör. Evdekiler, Bahçedekiler…',
+    defaultAction: 'seen',
+    prune: false,      // aşı/veteriner/parazit geçmişi ASLA silinmez
+    // Kedide gelecek tarihe kayıt AÇIK: "26 Ağustos'ta aşı var" gibi planlar
+    // hatırlatıcı olarak önceden giriliyor. Bitkide kapalı — geçmiş bir kayıt
+    // "yaptım" demek, gelecekteki bir sulama kaydının anlamı yok.
+    allowFuture: true,
+    actions: {
+      seen:       { emoji:'👁',  label:'Gördüm, iyi' },
+      deworm_in:  { emoji:'🪱', label:'İç parazit' },
+      deworm_out: { emoji:'🦟', label:'Dış parazit' },
+      vaccine:    { emoji:'💉', label:'Aşı' },
+      vet:        { emoji:'🩺', label:'Veteriner' },
+      problem:    { emoji:'🤒', label:'Sorun' },
+      meds:       { emoji:'💊', label:'İlaç' },
+      nails:      { emoji:'✂️', label:'Tırnak' },
+      note:       { emoji:'📝', label:'Not' }
+    },
+    // Kedi filtreleri bitkininkinden FARKLI çalışır: 'act:<işlem>' olanlar
+    // "üstte açık olan AY içinde bu işlemin kaydı olanlar" demektir. Ay
+    // değiştirilince filtre de kendiliğinden o aya göre yeniden hesaplanır.
+    filters: [
+      { id:'unseen',         label:'👁 3 gündür işaret yok' },
+      { id:'act:deworm_in',  label:'🪱 İç parazit' },
+      { id:'act:deworm_out', label:'🦟 Dış parazit' },
+      { id:'act:vaccine',    label:'💉 Aşı' },
+      { id:'act:vet',        label:'🩺 Veteriner' },
+      { id:'act:problem',    label:'🤒 Sorun' },
+      { id:'act:meds',       label:'💊 İlaç' },
+      { id:'act:nails',      label:'✂️ Tırnak' },
+      { id:'act:note',       label:'📝 Not' },
+      { id:'all',            label:'Tümü' }
+    ]
+  }
 };
+
+// "Uzun süredir işaret yok" eşiği (gün). Dikkat: yalnızca 👁'ye değil, o kediye
+// ait HERHANGİ bir kayda bakılıyor — ilaç verdiysen zaten görmüşsündür. Yoksa
+// her gün 👁 basmayan biri için filtre sürekli yanlış alarm verirdi.
+const GORULMEDI_GUN = 3;
+
+let mode = 'plant';                            // 'plant' | 'cat'
+function M()   { return MODES[mode]; }         // aktif modun ayarları
+function ACT() { return MODES[mode].actions; } // aktif modun işlem tablosu
 
 // ── STATE ──
 let plants  = [];  // {id, name, color|null, note, groupId|null}
@@ -818,6 +953,11 @@ function login() {
 function encodeKey(key) { return key.replace(/\|/g, '__'); }
 function decodeKey(key) { return key.replace(/__/g, '|'); }
 
+// Her mod kendi Firebase düğümüne yazar: bitkiler users/<kullanıcı>/data,
+// kediler users/<kullanıcı>/cats. Böylece kedi özelliği mevcut bitki verisine
+// hiç dokunmuyor ve iki liste birbirine karışmıyor.
+function dataRef() { return db.ref(`users/${currentUser}/${M().node}`); }
+
 function saveData() {
   if (!currentUser) return;
   const encodedRecords = {};
@@ -830,16 +970,17 @@ function saveData() {
     records: encodedRecords,
     collapsed: [...collapsedGroups]
   };
-  db.ref(`users/${currentUser}/data`).set(data);
-  // localStorage'ı da güncelle (offline yedek)
-  localStorage.setItem('sg_plants',  JSON.stringify(plants));
-  localStorage.setItem('sg_groups',  JSON.stringify(groups));
-  localStorage.setItem('sg_records', JSON.stringify(records));
-  localStorage.setItem('sg_collapsed', JSON.stringify([...collapsedGroups]));
+  dataRef().set(data);
+  // localStorage'ı da güncelle (offline yedek) — önek moda göre değişiyor
+  const p = M().ls;
+  localStorage.setItem(p + 'plants',    JSON.stringify(plants));
+  localStorage.setItem(p + 'groups',    JSON.stringify(groups));
+  localStorage.setItem(p + 'records',   JSON.stringify(records));
+  localStorage.setItem(p + 'collapsed', JSON.stringify([...collapsedGroups]));
 }
 
 function loadData(callback) {
-  db.ref(`users/${currentUser}/data`).once('value').then(snap => {
+  dataRef().once('value').then(snap => {
     const data = snap.val();
     if (data) {
       plants  = data.plants  || [];
@@ -850,6 +991,11 @@ function loadData(callback) {
         records[decodeKey(key)] = rawRecords[key];
       }
       collapsedGroups = new Set(data.collapsed || []);
+    } else if (mode !== 'plant') {
+      // Kedi tarafı ilk kez açılıyor. Taşınacak eski veri yok — aşağıdaki
+      // localStorage aktarımı yalnızca bitki modunun geçmişine ait, kediye
+      // uygulanırsa bitki listesi kedi listesine kopyalanır.
+      plants = []; groups = []; records = {}; collapsedGroups = new Set();
     } else {
       // Firebase boş — localStorage'dan aktar (ilk geçiş)
       try {
@@ -885,7 +1031,11 @@ function normalizeRecords() {
   }
 }
 
+// Kedi modunda budama YAPILMAZ. Bitkide budama mantıklı, çünkü budanan şey her
+// gün tekrarlanan sulama kaydı. Kedide böyle bir günlük kayıt yok; aşı, veteriner
+// ve parazit geçmişi yıllar sonra da gerekli olduğu için hiçbiri silinmez.
 function pruneOldData() {
+  if (!M().prune) return;
   const cutoff1yr = new Date(); cutoff1yr.setFullYear(cutoff1yr.getFullYear() - 1);
   const cutoff5yr = new Date(); cutoff5yr.setFullYear(cutoff5yr.getFullYear() - 5);
   const str1yr = cutoff1yr.toISOString().slice(0,10);
@@ -903,7 +1053,7 @@ function pruneOldData() {
       else if (had) changed = true;
     }
   }
-  if (changed) { localStorage.setItem('sg_records', JSON.stringify(records)); saveData(); }
+  if (changed) { localStorage.setItem(M().ls + 'records', JSON.stringify(records)); saveData(); }
 }
 
 // ── DATE HELPERS ──
@@ -927,6 +1077,73 @@ function plantColor(plant) {
     if (g) return g.color;
   }
   return '#9aaa9a';
+}
+
+// ── MOD DEĞİŞTİRME ──
+// Ekrandaki metinleri, temayı, filtreleri ve işlem menüsünü aktif moda göre
+// yeniden yazar. Veri yüklemez — onu switchMode/initApp yapar.
+function applyMode() {
+  const m = M();
+  document.body.classList.toggle('mode-cat', mode === 'cat');
+  document.getElementById('brand-name').textContent = APP_NAME;
+  document.getElementById('app-name').textContent   = m.title;
+  const btn = document.getElementById('mode-btn');
+  btn.textContent = m.switchIcon;
+  btn.title       = m.switchTitle;
+  document.getElementById('empty-emoji').textContent = m.emptyEmoji;
+  document.getElementById('empty-text').textContent  = m.emptyText;
+  document.getElementById('multi-noun').textContent  = m.nounLower;
+  document.getElementById('plant-name-input').placeholder = m.namePh;
+  document.getElementById('plant-note-input').placeholder = m.notePh;
+  document.getElementById('group-name-input').placeholder = m.groupPh;
+  renderFilters();
+  renderActionGrid();
+}
+
+function switchMode() {
+  mode = (mode === 'cat') ? 'plant' : 'cat';
+  localStorage.setItem('sg_mode', mode);
+  // Diğer modun durumu tamamen bırakılmalı; yoksa bitkilerde yapılan çoklu
+  // seçim kedilere taşınır ve yanlış kayıtlar oluşur.
+  multiSelected.clear();
+  activeFilter = null;
+  plants = []; groups = []; records = {}; collapsedGroups = new Set();
+  applyMode();
+  const now = new Date();
+  currentYear = now.getFullYear(); currentMonth = now.getMonth();
+  scrollToTodayNext = true;
+  loadData(() => render());
+}
+
+function renderFilters() {
+  const box = document.getElementById('filters');
+  box.innerHTML = '';
+  M().filters.forEach(f => {
+    const b = document.createElement('button');
+    b.className = 'filter-btn';
+    b.dataset.filter = f.id;
+    b.textContent = f.label;
+    b.addEventListener('click', () => {
+      if (f.id === 'all') { activeFilter = null; applyFilter(null, false); return; }
+      applyFilter(f.id);
+    });
+    box.appendChild(b);
+  });
+}
+
+function renderActionGrid() {
+  const grid = document.getElementById('action-grid');
+  grid.innerHTML = '';
+  Object.entries(ACT()).forEach(([key, a]) => {
+    const item = document.createElement('div');
+    item.className = 'action-item';
+    item.dataset.action = key;
+    const em = document.createElement('span'); em.className = 'emoji'; em.textContent = a.emoji;
+    const lb = document.createElement('span'); lb.className = 'label'; lb.textContent = a.label;
+    item.appendChild(em); item.appendChild(lb);
+    item.addEventListener('click', () => toggleAction(key));
+    grid.appendChild(item);
+  });
 }
 
 /// ── RENDER ──
@@ -959,7 +1176,7 @@ function renderTable() {
 
   // ── HEADER ROW ──
   const thPlant = document.createElement('th');
-  thPlant.className = 'plant-col-head'; thPlant.textContent = 'Bitkiler';
+  thPlant.className = 'plant-col-head'; thPlant.textContent = M().nounPlural;
   hrow.appendChild(thPlant);
 
   for (let d = 1; d <= days; d++) {
@@ -969,7 +1186,8 @@ function renderTable() {
     const band = Math.floor((d - 1) / 5) % 2;
     if (band === 1) th.classList.add('col-zebra');
     if (dateStr === today) th.className = 'today-head';
-    else if (dateStr > today) th.classList.add('future-head');
+    // Gelecek günler kedide kullanılabilir olduğu için daha az soluk.
+    else if (dateStr > today) th.classList.add(M().allowFuture ? 'plan-head' : 'future-head');
     hrow.appendChild(th);
   }
 
@@ -1048,12 +1266,16 @@ function renderTable() {
       for (let d = 1; d <= days; d++) {
         const td = document.createElement('td');
         const dateStr = cellDate(currentYear, currentMonth, d);
-        const isFuture = dateStr > today;
+        // Kedi modunda gelecek gün "kilitli" değil "planlanabilir": tıklanır,
+        // ama yapılmış bir işten ayırt edilsin diye daha soluk çiziliyor.
+        const isPlan   = dateStr > today && M().allowFuture;
+        const isFuture = dateStr > today && !M().allowFuture;
         const isToday  = dateStr === today;
         const colBand  = Math.floor((d - 1) / 5) % 2;
 
         if (isToday)       td.className = 'today-col';
         else if (isFuture) td.className = 'future-col';
+        else if (isPlan)   td.className = 'plan-col';
         else if (colBand === 1) td.classList.add('col-zebra');
 
         const key = `${plant.id}|${dateStr}`;
@@ -1061,8 +1283,12 @@ function renderTable() {
         if (rec && ((rec.actions?.length > 0) || rec.note)) {
           const div = document.createElement('div');
           div.className = 'cell-content';
-          const emojis = (rec.actions || []).filter(a => a !== 'note').map(a => ACTIONS[a]?.emoji || '').join('');
+          const isaretler = (rec.actions || []).filter(a => a !== 'note');
+          const emojis = isaretler.map(a => ACT()[a]?.emoji || '').join('');
           div.textContent = emojis + (rec.note ? '📝' : '');
+          // Kedide bir güne 8 işaret sığabiliyor; üçten fazlası 38px'lik
+          // hücreye taşmasın diye punto küçülüyor.
+          if (isaretler.length + (rec.note ? 1 : 0) > 2) div.classList.add('dense');
           td.appendChild(div);
         }
 
@@ -1131,7 +1357,7 @@ function renderMultiBar() {
     assignBtn.style.display = '';
   } else {
     info.classList.remove('visible');
-    addBtn.textContent = '＋ Bitki Ekle';
+    addBtn.textContent = '＋ ' + M().noun + ' Ekle';
     addBtn.onclick = openAddSheet;
     assignBtn.style.display = 'none';
   }
@@ -1164,7 +1390,8 @@ function handleCellClick(e, plantId, date, td) {
     return;
   }
   if (actionCount === 0 && !hasNote) {
-    ripple(e, td); addRecord(plantId, date, 'water'); render(); return;
+    // Bitkide 💧 sulama, kedide 👁 gördüm-iyi. Modun varsayılan işlemi.
+    ripple(e, td); addRecord(plantId, date, M().defaultAction); render(); return;
   }
   if (actionCount === 1 && !hasNote) {
     delete records[key]; saveData(); render(); return;
@@ -1197,7 +1424,7 @@ function openActionSheet(plantId, date, displayDate, existingRec) {
   const plant = plantId ? plants.find(p => p.id === plantId) : null;
   const dayNum = parseInt(displayDate.split('-')[2]);
   document.getElementById('action-title').textContent = multiSelected.size > 0
-    ? `${multiSelected.size} bitki · ${dayNum} ${monthLabel(currentYear, currentMonth)}`
+    ? `${multiSelected.size} ${M().nounLower} · ${dayNum} ${monthLabel(currentYear, currentMonth)}`
     : `${plant?.name} · ${dayNum} ${monthLabel(currentYear, currentMonth)}`;
   selectedActions = new Set(existingRec ? existingRec.actions : []);
   const noteInput = document.getElementById('action-note-input');
@@ -1280,6 +1507,17 @@ function applyFilter(filter, toggle = true) {
     if (btn) btn.classList.add('active');
   }
 
+  // İki mod farklı mantıkla süzüyor, o yüzden testi mod seçiyor.
+  const gosterilsinMi = (mode === 'cat') ? catFilterTest() : plantFilterTest();
+  document.querySelectorAll('#table-body tr.plant-row').forEach(tr => {
+    tr.classList.toggle('filtered-out', !gosterilsinMi(tr.dataset.plantId));
+  });
+}
+
+// BİTKİ: bugünden geriye kayan pencere ("son 7 günde 3+ sulama" gibi).
+function plantFilterTest() {
+  if (!activeFilter) return () => true;
+
   const today     = new Date();
   const sevenAgo  = new Date(today); sevenAgo.setDate(sevenAgo.getDate() - 7);
   const fourteenAgo = new Date(today); fourteenAgo.setDate(fourteenAgo.getDate() - 14);
@@ -1303,14 +1541,48 @@ function applyFilter(filter, toggle = true) {
     return false;
   }
 
-  document.querySelectorAll('#table-body tr.plant-row').forEach(tr => {
-    const pid = tr.dataset.plantId; let show = true;
-    if (activeFilter === 'water-heavy') show = countInRange(pid, 'water', sevenAgo, today) >= 3;
-    else if (activeFilter === 'water-light') show = countInRange(pid, 'water', fourteenAgo, today) <= 1;
-    else if (activeFilter === 'repotted') show = hasActionSince(pid, 'repot', ninetyAgo);
-    else if (activeFilter === 'fertilized') show = hasActionSince(pid, 'fertilize', thirtyAgo);
-    tr.classList.toggle('filtered-out', !show);
-  });
+  return (pid) => {
+    if (activeFilter === 'water-heavy') return countInRange(pid, 'water', sevenAgo, today) >= 3;
+    if (activeFilter === 'water-light') return countInRange(pid, 'water', fourteenAgo, today) <= 1;
+    if (activeFilter === 'repotted')    return hasActionSince(pid, 'repot', ninetyAgo);
+    if (activeFilter === 'fertilized')  return hasActionSince(pid, 'fertilize', thirtyAgo);
+    return true;
+  };
+}
+
+// KEDİ: 'act:<işlem>' filtreleri BAKILAN AY'a bakar (ay değişince sonuç değişir);
+// 'unseen' ise aya değil, bugünden geriye GORULMEDI_GUN güne bakar.
+function catFilterTest() {
+  if (!activeFilter) return () => true;
+
+  if (activeFilter === 'unseen') {
+    const esik = new Date();
+    esik.setDate(esik.getDate() - (GORULMEDI_GUN - 1)); // bugün dahil N gün
+    const esikStr = cellDate(esik.getFullYear(), esik.getMonth(), esik.getDate());
+    // Herhangi bir kayıt "görüldü" sayılıyor — sadece 👁 değil.
+    const gorulen = new Set();
+    for (const key of Object.keys(records)) {
+      const [pid, date] = key.split('|');
+      if (date && date >= esikStr) gorulen.add(pid);
+    }
+    return (pid) => !gorulen.has(pid);
+  }
+
+  if (activeFilter.startsWith('act:')) {
+    const action = activeFilter.slice(4);
+    const ayOneki = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+    const bulunan = new Set();
+    for (const key of Object.keys(records)) {
+      const [pid, date] = key.split('|');
+      if (!date || !date.startsWith(ayOneki)) continue;
+      const rec = records[key];
+      if (action === 'note') { if (rec.note) bulunan.add(pid); }
+      else if (rec.actions.includes(action)) bulunan.add(pid);
+    }
+    return (pid) => bulunan.has(pid);
+  }
+
+  return () => true;
 }
 
 // ── CONTEXT MENUS ──
@@ -1347,14 +1619,17 @@ function openDatePicker() {
 function closeDatePicker() { document.getElementById('date-picker').style.display = 'none'; }
 function renderDatePicker() {
   const now = new Date();
+  // Kedi modunda plan girilebildiği için gelecek ay/yıl da seçilebilir.
+  const ileriSerbest = M().allowFuture;
+  const yilKilitli = !ileriSerbest && datePickerYear >= now.getFullYear();
   document.getElementById('dp-year-label').textContent = datePickerYear;
-  document.getElementById('dp-next-year').disabled = datePickerYear >= now.getFullYear();
-  document.getElementById('dp-next-year').style.opacity = datePickerYear >= now.getFullYear() ? '0.3' : '1';
+  document.getElementById('dp-next-year').disabled = yilKilitli;
+  document.getElementById('dp-next-year').style.opacity = yilKilitli ? '0.3' : '1';
   const TR_MONTHS = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
   const container = document.getElementById('dp-months'); container.innerHTML = '';
   TR_MONTHS.forEach((name, i) => {
     const btn = document.createElement('button'); btn.className = 'dp-month-btn'; btn.textContent = name;
-    const isFuture  = datePickerYear === now.getFullYear() && i > now.getMonth();
+    const isFuture  = !ileriSerbest && datePickerYear === now.getFullYear() && i > now.getMonth();
     const isCurrent = datePickerYear === currentYear && i === currentMonth;
     if (isFuture)  btn.classList.add('future');
     if (isCurrent) btn.classList.add('current');
@@ -1388,7 +1663,7 @@ function renderColorGrid(containerId, currentColor, onSelect, allowInherit) {
 // ── ADD / EDIT PLANT ──
 function openAddSheet() {
   editingPlantId = null;
-  document.getElementById('add-sheet-title').textContent = 'Yeni Bitki';
+  document.getElementById('add-sheet-title').textContent = 'Yeni ' + M().noun;
   document.getElementById('plant-name-input').value = '';
   document.getElementById('plant-note-input').value = '';
   selectedColor = COLORS[0];
@@ -1402,7 +1677,7 @@ function openAddSheet() {
 function openEditSheet(plantId) {
   const plant = plants.find(p => p.id === plantId); if (!plant) return;
   editingPlantId = plantId;
-  document.getElementById('add-sheet-title').textContent = 'Bitki Düzenle';
+  document.getElementById('add-sheet-title').textContent = M().noun + ' Düzenle';
   document.getElementById('plant-name-input').value  = plant.name;
   document.getElementById('plant-note-input').value  = plant.note || '';
   selectedColor = plant.color || null;
@@ -1445,7 +1720,7 @@ function savePlant() {
 }
 
 function deletePlant(plantId) {
-  if (!confirm('Bu bitkiyi ve tüm kayıtlarını sil?')) return;
+  if (!confirm(`Bu ${M().nounAcc} ve tüm kayıtlarını sil?`)) return;
   plants = plants.filter(p => p.id !== plantId);
   for (const key of Object.keys(records)) { if (key.startsWith(plantId + '|')) delete records[key]; }
   saveData(); render();
@@ -1458,7 +1733,7 @@ function openAssignGroupSheet(plantIds, titleOverride) {
   assignTargetPlants = plantIds ? new Set(plantIds) : null;
   const count = plantIds ? plantIds.length : multiSelected.size;
   document.getElementById('assign-group-title').textContent =
-    titleOverride || `${count} bitkiyi gruba taşı`;
+    titleOverride || `${count} ${M().nounAcc} gruba taşı`;
 
   const list = document.getElementById('assign-group-list');
   list.innerHTML = '';
@@ -1473,7 +1748,7 @@ function openAssignGroupSheet(plantIds, titleOverride) {
   if (groups.length === 0) {
     const empty = document.createElement('div');
     empty.style.cssText = 'color:var(--text2);font-size:13px;padding:10px 0;text-align:center;';
-    empty.textContent = 'Henüz grup yok. Önce ＋ Grup ile grup oluştur.';
+    empty.textContent = 'Henüz grup yok. Önce ＋ Grup ile grup oluştur.'; // her iki modda aynı
     list.appendChild(empty);
   }
 
@@ -1486,7 +1761,7 @@ function openAssignGroupSheet(plantIds, titleOverride) {
     name.className = 'assign-group-name'; name.textContent = g.name;
     const cnt = document.createElement('span');
     cnt.className = 'assign-group-count';
-    cnt.textContent = plants.filter(p => p.groupId === g.id).length + ' bitki';
+    cnt.textContent = plants.filter(p => p.groupId === g.id).length + ' ' + M().nounLower;
     item.appendChild(dot); item.appendChild(name); item.appendChild(cnt);
     item.addEventListener('click', () => assignToGroup(g.id));
     list.appendChild(item);
@@ -1546,7 +1821,7 @@ function saveGroup() {
     const ungrouped = plants.filter(p => !p.groupId);
     if (ungrouped.length > 0) {
       setTimeout(() => {
-        openAssignGroupSheet(ungrouped.map(p => p.id), `"${name}" grubuna bitki ekle`);
+        openAssignGroupSheet(ungrouped.map(p => p.id), `"${name}" grubuna ${M().nounLower} ekle`);
         // Pre-select the new group in the list by scrolling — list already built with new group
       }, 200);
     }
@@ -1554,7 +1829,7 @@ function saveGroup() {
 }
 
 function deleteGroup(groupId) {
-  if (!confirm('Bu grubu sil? Bitkiler grupsuz kalır, kayıtlar korunur.')) return;
+  if (!confirm(`Bu grubu sil? ${M().nounPlural} grupsuz kalır, kayıtlar korunur.`)) return;
   groups = groups.filter(g => g.id !== groupId);
   plants.forEach(p => { if (p.groupId === groupId) p.groupId = null; });
   collapsedGroups.delete(groupId);
@@ -1595,7 +1870,14 @@ function init() {
   const now = new Date();
   currentYear = now.getFullYear(); currentMonth = now.getMonth();
 
-document.getElementById('logout-btn').addEventListener('click', logout);
+  // Mod cihaza özel bir görünüm tercihi, o yüzden Firebase'de değil
+  // localStorage'da tutuluyor. Giriş ekranı da doğru temayla açılsın diye
+  // initAuth'tan ÖNCE uygulanıyor.
+  if (localStorage.getItem('sg_mode') === 'cat') mode = 'cat';
+  applyMode();
+
+  document.getElementById('mode-btn').addEventListener('click', switchMode);
+  document.getElementById('logout-btn').addEventListener('click', logout);
 
   const rotateHint = document.getElementById('rotate-hint');
   const rotateHintClose = document.getElementById('rotate-hint-close');
@@ -1622,7 +1904,8 @@ document.getElementById('logout-btn').addEventListener('click', logout);
   document.getElementById('next-month').addEventListener('click', () => {
     closeDatePicker();
     const n = new Date();
-    if (currentYear === n.getFullYear() && currentMonth === n.getMonth()) return;
+    // Bitki modunda bu ayı geçemezsin; kedide gelecek aylara da plan girilebilir.
+    if (!M().allowFuture && currentYear === n.getFullYear() && currentMonth === n.getMonth()) return;
     if (currentMonth === 11) { currentMonth = 0; currentYear++; } else currentMonth++;
     scrollToTodayNext = true;
     render();
@@ -1630,17 +1913,12 @@ document.getElementById('logout-btn').addEventListener('click', logout);
   document.getElementById('month-label').addEventListener('click', openDatePicker);
   document.getElementById('dp-prev-year').addEventListener('click', () => { datePickerYear--; renderDatePicker(); });
   document.getElementById('dp-next-year').addEventListener('click', () => {
-    if (datePickerYear >= new Date().getFullYear()) return; datePickerYear++; renderDatePicker();
+    if (!M().allowFuture && datePickerYear >= new Date().getFullYear()) return;
+    datePickerYear++; renderDatePicker();
   });
 
-  // Filters
-  document.querySelectorAll('.filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const f = btn.dataset.filter;
-      if (f === 'all') { activeFilter = null; applyFilter(null, false); return; }
-      applyFilter(f);
-    });
-  });
+  // Filtre düğmelerinin dinleyicileri renderFilters içinde bağlanıyor,
+  // çünkü düğmeler moda göre yeniden üretiliyor.
 
   // Plant sheet
   document.getElementById('btn-add-plant').addEventListener('click', openAddSheet);
@@ -1664,10 +1942,7 @@ document.getElementById('logout-btn').addEventListener('click', logout);
   document.getElementById('btn-save-group').addEventListener('click', saveGroup);
   document.getElementById('group-name-input').addEventListener('keydown', e => { if (e.key === 'Enter') saveGroup(); });
 
-  // Action sheet
-  document.querySelectorAll('.action-item').forEach(item => {
-    item.addEventListener('click', () => toggleAction(item.dataset.action));
-  });
+  // Action sheet — işlem düğmelerinin dinleyicileri renderActionGrid içinde.
   document.getElementById('btn-cancel-action').addEventListener('click', () => {
     closeOverlay('action-overlay'); pendingCell = null; selectedActions = new Set();
   });
