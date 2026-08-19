@@ -27,6 +27,7 @@
     --text:       #e8e0d0;
     --text2:      #9aaa9a;
     --warn:       #c9743a;
+    --warn-rgb:   201,116,58;
     --border:     #2e3f32;
     --cell-w:     38px;
     --plant-col:  140px;
@@ -49,6 +50,7 @@
     --text:       #f2e6d2;
     --text2:      #b39c7d;
     --warn:       #d0453a;
+    --warn-rgb:   208,69,58;
     --border:     #3d2d1c;
   }
 
@@ -272,8 +274,20 @@
   td.future-col { opacity: 0.35; cursor: default; }
   /* Kedi modunda gelecek gün: tıklanabilir (plan/hatırlatıcı), ama yapılmış
      işten ayırt edilsin diye soluk. Bitki modunda bu sınıf hiç kullanılmıyor. */
-  td.plan-col { opacity: 0.62; }
-  thead th.plan-head { opacity: 0.6; }
+  td.plan-col { opacity: 0.4; }
+  thead th.plan-head { opacity: 0.45; }
+  /* Tarihi gelmiş ama HENÜZ ONAYLANMAMIŞ plan. Soluk kalmaya devam eder ki
+     "planladım" ile "yaptım" karışmasın; ayrıca uyarı renginde bir zemin alır
+     ki kaçırılmış bir randevu geçmişin içinde kaybolmasın. Tek dokunuş onaylar. */
+  td.plan-due { background: rgba(var(--warn-rgb),0.16); }
+  td.plan-due .cell-content { opacity: 0.55; }
+  /* İçinde ONAYLANMAMIŞ plan olan hücre. Kesikli çerçeve "henüz olmadı" demek;
+     onaylanınca (plan alanı silinince) çerçeve kalkar, işaret normalleşir.
+     Yalnızca planı OLAN hücreye gelir — boş gelecek günlere değil, yoksa
+     gelecek alanın tamamı kesikli kutularla dolardı.
+     border yerine outline: border tablo çizgilerini kaydırıyor. */
+  td.plan-mark { outline: 2px dashed rgba(var(--accent-rgb),0.85); outline-offset: -3px; }
+  td.plan-mark.plan-due { outline-color: rgba(var(--warn-rgb),0.9); }
 
   /* zebra columns (5-banded) */
   td.col-zebra { background: var(--zebra-col); }
@@ -441,8 +455,21 @@
     transition: background 0.15s, border-color 0.15s;
     display: flex; flex-direction: column; align-items: center; gap: 6px;
   }
-  .action-item:hover, .action-item.selected-action {
+  /* SEÇİLİ — görünümü kasıtlı olarak aynı bırakıldı. */
+  .action-item.selected-action {
     background: var(--accent2); border-color: var(--accent);
+  }
+  /* FARE ÜSTÜNDE — eskiden seçiliyle AYNI kuralı paylaşıyordu. Bu yüzden seçili
+     bir seçeneğe tıklayıp seçimi kaldırdığında imleç hâlâ üstünde olduğu için
+     görünüm değişmiyor, jest çalışmıyor sanılıyordu (19.08.2026). Artık sadece
+     hafif bir iz bırakıyor; seçili olan belirgin kalıyor.
+     hover:hover — dokunmatikte parmak kalktıktan sonra vurgunun takılı
+     kalmaması için; telefonda/tablette bu kural hiç uygulanmaz. */
+  @media (hover: hover) {
+    .action-item:hover:not(.selected-action) {
+      background: rgba(var(--accent-rgb),0.10);
+      border-color: rgba(var(--accent-rgb),0.45);
+    }
   }
   .action-item .emoji { font-size: 22px; }
   .action-item .label { font-size: 11px; color: var(--text2); }
@@ -702,6 +729,9 @@
     </div>
     <div class="sheet-actions">
       <button class="btn-secondary" id="btn-cancel-action">İptal</button>
+      <!-- Hücreyi boşaltmanın yolu: seçili işleme tekrar dokunup seçimi
+           kaldırmak, sonra Kaydet. 19.08.2026'da eklenen "🗑️ Temizle"
+           düğmesi kullanıcı isteğiyle kaldırıldı. -->
       <button class="btn-primary" id="btn-save-action">Kaydet</button>
     </div>
   </div>
@@ -1058,6 +1088,7 @@ function pruneOldData() {
 
 // ── DATE HELPERS ──
 function daysInMonth(y, m) { return new Date(y, m+1, 0).getDate(); }
+
 function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -1280,6 +1311,13 @@ function renderTable() {
 
         const key = `${plant.id}|${dateStr}`;
         const rec = records[key];
+        // Tarihi gelmiş ama onaylanmamış plan: soluk kalmaya devam eder ve
+        // uyarı zemini alır. (Gelecek günler zaten plan-col ile soluk.)
+        if (rec && rec.plan && !isPlan) td.classList.add('plan-due');
+        // Onaylanmamış planın kesikli çerçevesi: hem günü gelmemiş plana hem
+        // tarihi geçmiş olana. Tek başına duran bir plan, solukluğu
+        // karşılaştıracak komşusu olmadığında böyle ayırt ediliyor.
+        if (rec && rec.plan) td.classList.add('plan-mark');
         if (rec && ((rec.actions?.length > 0) || rec.note)) {
           const div = document.createElement('div');
           div.className = 'cell-content';
@@ -1365,13 +1403,21 @@ function renderMultiBar() {
 
 // ── LONG PRESS ──
 function addLongPress(el, callback) {
-  let timer = null, moved = false;
+  let timer = null, moved = false, tetiklendi = false;
   el.addEventListener('touchstart', (e) => {
-    moved = false;
-    timer = setTimeout(() => { if (!moved) { e.preventDefault(); callback(e); } }, 500);
+    moved = false; tetiklendi = false;
+    timer = setTimeout(() => { if (!moved) { tetiklendi = true; callback(e); } }, 500);
   }, { passive: false });
   el.addEventListener('touchmove', () => { moved = true; clearTimeout(timer); });
-  el.addEventListener('touchend', () => clearTimeout(timer));
+  el.addEventListener('touchend', (e) => {
+    clearTimeout(timer);
+    // Uzun basma tetiklendiyse tarayıcının ardından ürettiği click'i engelle.
+    // Eskiden preventDefault zamanlayıcının içinde çağrılıyordu; olay o anda
+    // artık iptal edilebilir olmadığı için işe yaramıyordu. Sonuç: menü açılıyor,
+    // AMA arkada hücreye bir de tek dokunuş işleniyordu — tek işlemli bir hücrede
+    // bu, kaydı silip menüyü bayat veriyle bırakıyordu.
+    if (tetiklendi) e.preventDefault();
+  }, { passive: false });
   el.addEventListener('touchcancel', () => clearTimeout(timer));
   el.addEventListener('contextmenu', (e) => { e.preventDefault(); callback(e); });
 }
@@ -1389,7 +1435,16 @@ function handleCellClick(e, plantId, date, td) {
     openActionSheet(null, null, date, null);
     return;
   }
+  // Tarihi gelmiş bir PLAN: tek dokunuş onaylar ("evet, oldu") ve işaret
+  // koyulaşır. Onaylandıktan sonra hücre normal kurallara döner — tek işlemli
+  // bir hücrede ikinci dokunuş siler, yani gün yine boşaltılabilir.
+  if (rec && rec.plan && date <= todayStr()) {
+    delete rec.plan; saveData(); render(); return;
+  }
   if (actionCount === 0 && !hasNote) {
+    // Gelecek bir güne varsayılan işlemi yazmak anlamsız: henüz gelmemiş bir
+    // güne "👁 Gördüm, iyi" düşemez. Plan girilirken ne olduğu seçilmeli.
+    if (date > todayStr()) { openActionSheet(plantId, date, date, null); return; }
     // Bitkide 💧 sulama, kedide 👁 gördüm-iyi. Modun varsayılan işlemi.
     ripple(e, td); addRecord(plantId, date, M().defaultAction); render(); return;
   }
@@ -1464,8 +1519,13 @@ function saveAction() {
 
   function applyToCell(pid, date) {
     const key = `${pid}|${date}`;
-    if (actionsArr.length === 0 && !note) delete records[key];
-    else records[key] = { actions: actionsArr, note };
+    if (actionsArr.length === 0 && !note) { delete records[key]; return; }
+    const rec = { actions: actionsArr, note };
+    // Gelecek bir güne yazılan her şey PLAN'dır. Geçmişe/bugüne kaydetmek
+    // "oldu" demektir, o yüzden plan işareti konmaz — tarihi geçmiş bir planı
+    // menüden kaydetmek de onu onaylamış sayılır.
+    if (M().allowFuture && date > todayStr()) rec.plan = true;
+    records[key] = rec;
   }
 
   if (pendingCell?.plantId) {
@@ -1566,6 +1626,9 @@ function catFilterTest() {
     const gorulen = new Set();
     for (const key of Object.keys(records)) {
       const [pid, date] = key.split('|');
+      // Onaylanmamış plan kanıt değil: "veterinere götürecektim" kediyi görmüş
+      // olmakla aynı şey değil.
+      if (records[key].plan) continue;
       if (date && date >= esikStr && date <= bugun) gorulen.add(pid);
     }
     return (pid) => !gorulen.has(pid);
