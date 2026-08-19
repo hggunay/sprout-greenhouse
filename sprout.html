@@ -34,6 +34,17 @@
     --row-h:      44px;
     --zebra-col:  rgba(255,255,255,0.028);
     --zebra-row:  rgba(255,255,255,0.022);
+    /* Plan şeridi kedi renkleriyle çizilir — BİTKİ MODUNDA DA. Planlar yalnızca
+       kedilere ait olduğu için şerit hangi moda bakılırsa bakılsın aynı kimlikte
+       kalıyor. Bu yüzden mod değiştikçe değişen --accent-rgb'ye bağlanamaz;
+       aşağıdaki iki değişken kasıtlı olarak mod değişiminden etkilenmiyor. */
+    --cat-accent-rgb: 193,122,63;
+    --cat-warn-rgb:   208,69,58;
+    --cat-bg2:        #241a10;
+    --cat-bg3:        #3a2a19;
+    --cat-border:     #3d2d1c;
+    --cat-text:       #f2e6d2;
+    --cat-text2:      #b39c7d;
   }
 
   /* ── KEDİ MODU (Hagrid's Hut) — toprak sarısı / kiremit ──
@@ -288,6 +299,48 @@
      border yerine outline: border tablo çizgilerini kaydırıyor. */
   td.plan-mark { outline: 2px dashed rgba(var(--accent-rgb),0.85); outline-offset: -3px; }
   td.plan-mark.plan-due { outline-color: rgba(var(--warn-rgb),0.9); }
+
+  /* ── YAKLAŞAN / KAÇIRILAN PLAN ŞERİDİ ──
+     Kedi renklerine sabitlenmiş (--cat-*): bitki modunda da aynı kimlikte
+     görünsün diye. Planı olmayan kullanıcıda tamamen gizli. */
+  .plan-serit { margin: 0 0 10px; }
+  .plan-serit-ozet {
+    width: 100%; cursor: pointer; text-align: left;
+    display: flex; align-items: center; gap: 12px;
+    background: rgba(var(--cat-accent-rgb),0.14);
+    border: 1px solid rgba(var(--cat-accent-rgb),0.45);
+    border-radius: 10px; padding: 9px 12px;
+    color: var(--text); font: 500 13px 'Space Grotesk', sans-serif;
+  }
+  .plan-serit-ozet .kacirilan { color: rgb(var(--cat-warn-rgb)); font-weight: 600; }
+  .plan-serit-ok { margin-left: auto; color: var(--text2); }
+  .plan-serit-liste { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+  /* Satırlar da kedi renklerinde — bitki modunda yeşil kalmasınlar diye
+     --bg2/--border yerine sabitlenmiş --cat-* değişkenleri kullanılıyor. */
+  .plan-satir {
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+    background: var(--cat-bg2); border: 1px solid var(--cat-border);
+    border-left: 3px solid rgba(var(--cat-accent-rgb),0.75);
+    border-radius: 8px; padding: 8px 10px; font-size: 13px; color: var(--cat-text);
+  }
+  .plan-satir.gecikmis { border-left-color: rgb(var(--cat-warn-rgb)); }
+  /* min-width:0 ŞART: flex öğesinin varsayılan min-width'i "auto" olduğu için
+     uzun bir kedi adı küçülmüyor ve tarihi + 📅 düğmesini satırın dışına
+     itiyordu (19.08.2026'da düğme "görünmüyor" diye bildirildi). */
+  .plan-satir .plan-ad {
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .plan-satir .plan-tarih {
+    margin-left: auto; flex-shrink: 0;
+    color: var(--cat-text2); font-size: 12px; white-space: nowrap;
+  }
+  .plan-ics, .plan-ics-hepsi {
+    flex-shrink: 0;
+    background: var(--cat-bg3); border: 1px solid var(--cat-border); color: var(--cat-text);
+    border-radius: 8px; cursor: pointer; font-size: 13px;
+  }
+  .plan-ics { padding: 4px 8px; line-height: 1; }
+  .plan-ics-hepsi { padding: 8px 10px; margin-top: 2px; font-family: 'Space Grotesk', sans-serif; }
 
   /* zebra columns (5-banded) */
   td.col-zebra { background: var(--zebra-col); }
@@ -545,8 +598,8 @@
   .assign-ungroup-item:hover { background: var(--bg3); color: var(--text); }
   .main-content { padding-bottom: 70px; }
 </style>
-<link rel="icon" type="image/png" href="sprout.png">
-<link rel="apple-touch-icon" href="sprout.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -627,6 +680,13 @@
 </header>
 
 <div class="main-content">
+  <!-- Yaklaşan/kaçırılan plan şeridi. Her iki modda da görünür (gözden
+       kaçmasın diye) ama kedi modunun renkleriyle çizilir — planlar yalnızca
+       kedilere ait olduğu için. İçerik yoksa tamamen gizlenir. -->
+  <div class="plan-serit" id="plan-serit" style="display:none">
+    <button class="plan-serit-ozet" id="plan-serit-ozet"></button>
+    <div class="plan-serit-liste" id="plan-serit-liste" style="display:none"></div>
+  </div>
   <div id="empty-state" class="empty-state" style="display:none">
     <div class="big" id="empty-emoji">🌱</div>
     <p id="empty-text">Henüz bitki yok. Aşağıdaki + butonuna dokun ve ilk bitkini ekle.</p>
@@ -1044,8 +1104,29 @@ function loadData(callback) {
     }
     normalizeRecords();
     pruneOldData();
-    if (callback) callback();
+    // Plan şeridi bitki modunda da kedi planlarını gösteriyor; o yüzden kedi
+    // düğümü ayrıca (salt okuma) çekiliyor. Kedi modundayken zaten elimizde.
+    catOnbellekYukle(() => { if (callback) callback(); });
   });
+}
+
+// ── PLAN ŞERİDİ İÇİN KEDİ VERİSİ ──
+// Bitki modundayken `records` bitki düğümünü tutuyor, kedi planları yüklü değil.
+// Şerit her iki modda da göründüğü için kedi düğümü ayrıca okunuyor. Sadece
+// okuma; buradan hiçbir zaman yazılmıyor.
+let catOnbellek = null; // { plants, records }
+
+function catOnbellekYukle(callback) {
+  if (!currentUser) { catOnbellek = null; if (callback) callback(); return; }
+  if (mode === 'cat') { catOnbellek = null; if (callback) callback(); return; }
+  db.ref(`users/${currentUser}/${MODES.cat.node}`).once('value').then(snap => {
+    const data = snap.val() || {};
+    const ham = data.records || {};
+    const cozulmus = {};
+    for (const key of Object.keys(ham)) cozulmus[decodeKey(key)] = ham[key];
+    catOnbellek = { plants: data.plants || [], records: cozulmus };
+  }).catch(() => { catOnbellek = null; })
+    .then(() => { if (callback) callback(); });
 }
 
 // Firebase boş dizileri saklamaz. Sadece not yazılmış (hiç işaret konmamış) bir hücre
@@ -1143,7 +1224,15 @@ function switchMode() {
   const now = new Date();
   currentYear = now.getFullYear(); currentMonth = now.getMonth();
   scrollToTodayNext = true;
-  loadData(() => render());
+  loadData(() => {
+    // Plan şeridinden gelindiyse bugünün ayına değil, planın ayına git.
+    if (planHedefi) {
+      currentYear = planHedefi.y; currentMonth = planHedefi.m;
+      scrollToTodayNext = false;
+      planHedefi = null;
+    }
+    render();
+  });
 }
 
 function renderFilters() {
@@ -1177,11 +1266,212 @@ function renderActionGrid() {
   });
 }
 
+// ── YAKLAŞAN / KAÇIRILAN PLAN ŞERİDİ ──
+// Planlar yalnızca kedi modunda girilebiliyor, ama şerit HER İKİ modda da
+// görünüyor (gözden kaçmasın diye) ve hep kedi renkleriyle çiziliyor.
+const PLAN_UFUK_GUN = 7; // kaç gün ilerisi "yaklaşan" sayılır
+
+function planKaynagi() {
+  return (mode === 'cat') ? { plants, records } : catOnbellek;
+}
+
+function planlariHesapla(kaynak) {
+  const sonuc = { kacirilan: [], yaklasan: [] };
+  if (!kaynak) return sonuc;
+  const bugun = todayStr();
+  const u = new Date(bugun + 'T12:00:00');
+  u.setDate(u.getDate() + PLAN_UFUK_GUN);
+  const ufuk = cellDate(u.getFullYear(), u.getMonth(), u.getDate());
+
+  const adlar = {};
+  (kaynak.plants || []).forEach(p => { adlar[p.id] = p.name; });
+
+  for (const key of Object.keys(kaynak.records || {})) {
+    const rec = kaynak.records[key];
+    if (!rec || !rec.plan) continue;              // yalnızca ONAYLANMAMIŞ planlar
+    const [pid, date] = key.split('|');
+    if (!date || !(pid in adlar)) continue;       // silinmiş kediye ait artık kayıt
+    // ACT() değil MODES.cat.actions: bitki modundayken ACT() bitki işlemlerini verir.
+    const isaretler = (rec.actions || []).filter(a => a !== 'note');
+    const kayit = {
+      pid, date,
+      ad: adlar[pid],
+      emojiler: isaretler.map(a => (MODES.cat.actions[a] || {}).emoji || '').join(''),
+      etiketler: isaretler.map(a => (MODES.cat.actions[a] || {}).label || a).join(', ')
+    };
+    if (date <= bugun) sonuc.kacirilan.push(kayit);
+    else if (date <= ufuk) sonuc.yaklasan.push(kayit);
+  }
+  const sirala = (a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+  sonuc.kacirilan.sort(sirala);
+  sonuc.yaklasan.sort(sirala);
+  return sonuc;
+}
+
+function planTarihMetni(tarih) {
+  const [y, a, g] = tarih.split('-').map(Number);
+  const aylar = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+  return g + ' ' + aylar[a - 1];
+}
+
+let planSeritAcik = false;
+
+function renderPlanSerit() {
+  const serit = document.getElementById('plan-serit');
+  const ozet  = document.getElementById('plan-serit-ozet');
+  const liste = document.getElementById('plan-serit-liste');
+  const p = planlariHesapla(planKaynagi());
+  const toplam = p.kacirilan.length + p.yaklasan.length;
+
+  if (!toplam) { serit.style.display = 'none'; liste.style.display = 'none'; planSeritAcik = false; return; }
+  serit.style.display = '';
+
+  // Özet — kullanıcı metni içerdiği için hep textContent ile yazılıyor.
+  ozet.innerHTML = '';
+  if (p.kacirilan.length) {
+    const s = document.createElement('span');
+    s.className = 'kacirilan';
+    s.textContent = '🔴 ' + p.kacirilan.length + ' kaçırılmış';
+    ozet.appendChild(s);
+  }
+  if (p.yaklasan.length) {
+    const s = document.createElement('span');
+    s.textContent = '🟡 ' + p.yaklasan.length + ' yaklaşan';
+    ozet.appendChild(s);
+  }
+  const ok = document.createElement('span');
+  ok.className = 'plan-serit-ok';
+  ok.textContent = planSeritAcik ? '▴' : '▾';
+  ozet.appendChild(ok);
+
+  liste.innerHTML = '';
+  liste.style.display = planSeritAcik ? '' : 'none';
+  [...p.kacirilan, ...p.yaklasan].forEach(k => {
+    const gecikmis = k.date <= todayStr();
+    const satir = document.createElement('div');
+    satir.className = 'plan-satir' + (gecikmis ? ' gecikmis' : '');
+
+    const ad = document.createElement('span');
+    ad.className = 'plan-ad';
+    ad.textContent = (k.emojiler ? k.emojiler + ' ' : '') + k.ad;
+    satir.appendChild(ad);
+
+    const tarih = document.createElement('span');
+    tarih.className = 'plan-tarih';
+    tarih.textContent = planTarihMetni(k.date) + (gecikmis ? ' · geçti' : '');
+    satir.appendChild(tarih);
+
+    const takvim = document.createElement('button');
+    takvim.className = 'plan-ics';
+    takvim.textContent = '📅';
+    takvim.title = 'Takvime ekle';
+    takvim.addEventListener('click', (e) => { e.stopPropagation(); icsIndir([k]); });
+    satir.appendChild(takvim);
+
+    satir.addEventListener('click', () => planaGit(k));
+    liste.appendChild(satir);
+  });
+
+  if (p.yaklasan.length + p.kacirilan.length > 1) {
+    const hepsi = document.createElement('button');
+    hepsi.className = 'plan-ics-hepsi';
+    hepsi.textContent = '📅 Hepsini takvime aktar';
+    hepsi.addEventListener('click', () => icsIndir([...p.kacirilan, ...p.yaklasan]));
+    liste.appendChild(hepsi);
+  }
+}
+
+// Şeritteki bir satıra dokununca o planın olduğu aya git. Bitki modundaysak
+// önce kedi moduna geçmek gerekiyor; switchMode veriyi asenkron yüklediği için
+// hedef ayı planHedefi ile taşıyoruz.
+let planHedefi = null;
+
+function planaGit(kayit) {
+  const [y, a] = kayit.date.split('-').map(Number);
+  if (mode !== 'cat') { planHedefi = { y, m: a - 1 }; switchMode(); return; }
+  currentYear = y; currentMonth = a - 1;
+  render();
+}
+
+// ── TAKVİME AKTARMA (.ics) ──
+// Sunucu gerekmiyor: tarayıcı bir .ics dosyası üretiyor, telefonun takvim
+// uygulaması onu içeri alıyor ve hatırlatmayı O yapıyor. Uygulama kapalıyken
+// de çalışmasının tek sunucusuz yolu bu.
+function icsKacis(metin) {
+  return String(metin).replace(/\\/g, '\\\\').replace(/;/g, '\\;')
+                      .replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+}
+
+// RFC 5545 satırları en fazla 75 OKTET; Türkçe harfler 2 bayt olduğu için
+// karakter sayısına göre katlamak yanlış olur.
+function icsKatla(satir) {
+  const enc = new TextEncoder();
+  if (enc.encode(satir).length <= 73) return satir;
+  const parcalar = [];
+  let mevcut = '';
+  for (const ch of satir) {
+    const deneme = mevcut + ch;
+    if (enc.encode(deneme).length > (parcalar.length ? 72 : 73)) { parcalar.push(mevcut); mevcut = ch; }
+    else mevcut = deneme;
+  }
+  if (mevcut) parcalar.push(mevcut);
+  return parcalar.join('\r\n ');
+}
+
+function icsOlustur(kayitlar) {
+  const damga = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  const satirlar = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Keepers Log//TR', 'CALSCALE:GREGORIAN'
+  ];
+  kayitlar.forEach((k, i) => {
+    const bas = k.date.replace(/-/g, '');
+    const b = new Date(k.date + 'T12:00:00');
+    b.setDate(b.getDate() + 1);
+    const bit = cellDate(b.getFullYear(), b.getMonth(), b.getDate()).replace(/-/g, '');
+    satirlar.push(
+      'BEGIN:VEVENT',
+      'UID:' + bas + '-' + i + '-' + Math.random().toString(36).slice(2, 8) + '@keeperslog',
+      'DTSTAMP:' + damga,
+      // Tüm gün süren olay: saat yok, takvimde günün başlığında görünür.
+      'DTSTART;VALUE=DATE:' + bas,
+      'DTEND;VALUE=DATE:' + bit,
+      icsKatla('SUMMARY:' + icsKacis(k.ad + ' — ' + k.etiketler)),
+      icsKatla('DESCRIPTION:' + icsKacis("Keeper's Log planı")),
+      // Tüm gün olayında DTSTART gece yarısı sayılır:
+      //   -PT15H → bir önceki gün 09:00 · PT9H → o günün sabahı 09:00
+      'BEGIN:VALARM', 'TRIGGER:-PT15H', 'ACTION:DISPLAY',
+      icsKatla('DESCRIPTION:' + icsKacis('Yarın: ' + k.ad + ' — ' + k.etiketler)), 'END:VALARM',
+      'BEGIN:VALARM', 'TRIGGER:PT9H', 'ACTION:DISPLAY',
+      icsKatla('DESCRIPTION:' + icsKacis('Bugün: ' + k.ad + ' — ' + k.etiketler)), 'END:VALARM',
+      'END:VEVENT'
+    );
+  });
+  satirlar.push('END:VCALENDAR');
+  return satirlar.join('\r\n') + '\r\n';
+}
+
+function icsIndir(kayitlar) {
+  if (!kayitlar || !kayitlar.length) return;
+  const metin = icsOlustur(kayitlar);
+  const blob = new Blob([metin], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = kayitlar.length === 1
+    ? 'plan-' + kayitlar[0].date + '.ics'
+    : 'keepers-log-planlar.ics';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 /// ── RENDER ──
 function render() {
   const tableWrap = document.getElementById('table-wrap');
   const scrollLeft = tableWrap ? tableWrap.scrollLeft : 0;
   document.getElementById('month-label').textContent = monthLabel(currentYear, currentMonth);
+  renderPlanSerit();
   renderTable();
   renderMultiBar();
   applyFilter(activeFilter, false);
@@ -2013,6 +2303,12 @@ function init() {
     closeOverlay('action-overlay'); pendingCell = null; selectedActions = new Set();
   });
   document.getElementById('btn-save-action').addEventListener('click', saveAction);
+
+  // Plan şeridi: özete dokununca liste açılır/kapanır.
+  document.getElementById('plan-serit-ozet').addEventListener('click', () => {
+    planSeritAcik = !planSeritAcik;
+    renderPlanSerit();
+  });
 
   // Multi cancel
   document.getElementById('btn-cancel-multi').addEventListener('click', () => {
