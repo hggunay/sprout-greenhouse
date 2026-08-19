@@ -1364,21 +1364,22 @@ function renderPlanSerit() {
     const takvim = document.createElement('button');
     takvim.className = 'plan-ics';
     takvim.textContent = '📅';
-    takvim.title = 'Takvime ekle';
-    takvim.addEventListener('click', (e) => { e.stopPropagation(); icsIndir([k]); });
+    takvim.title = 'Google Takvim\'de aç';
+    takvim.addEventListener('click', (e) => { e.stopPropagation(); googleTakvimAc(k); });
     satir.appendChild(takvim);
 
     satir.addEventListener('click', () => planaGit(k));
     liste.appendChild(satir);
   });
 
-  if (p.yaklasan.length + p.kacirilan.length > 1) {
-    const hepsi = document.createElement('button');
-    hepsi.className = 'plan-ics-hepsi';
-    hepsi.textContent = '📅 Hepsini takvime aktar';
-    hepsi.addEventListener('click', () => icsIndir([...p.kacirilan, ...p.yaklasan]));
-    liste.appendChild(hepsi);
-  }
+  // Dosya yolu her zaman görünür (tek plan olsa bile): Huawei takvimi, Outlook
+  // ve bilgisayardan Google Takvim'e içeri aktarma bu yolu kullanıyor.
+  const hepsi = document.createElement('button');
+  hepsi.className = 'plan-ics-hepsi';
+  const adet = p.kacirilan.length + p.yaklasan.length;
+  hepsi.textContent = adet > 1 ? '⬇️ Takvim dosyası indir (' + adet + ' plan)' : '⬇️ Takvim dosyası indir';
+  hepsi.addEventListener('click', () => icsIndir([...p.kacirilan, ...p.yaklasan]));
+  liste.appendChild(hepsi);
 }
 
 // Şeritteki bir satıra dokununca o planın olduğu aya git. Bitki modundaysak
@@ -1448,6 +1449,33 @@ function icsOlustur(kayitlar) {
   });
   satirlar.push('END:VCALENDAR');
   return satirlar.join('\r\n') + '\r\n';
+}
+
+// ── GOOGLE TAKVİM'DE AÇ ──
+// Google Takvim Android'de .ics dosyası AÇMIYOR (bilinen eksiklik, kodla
+// aşılamaz — 2026-08-19'da Gökşin'in telefonunda doğrulandı: "şununla aç"
+// listesinde takvim çıkmıyor, Outlook çıkıyor ve dosyayı doğru açıyor).
+// Bu yüzden telefon için ikinci bir yol: takvimin "yeni etkinlik" ekranını
+// dolu açan bağlantı. Bedeli, hatırlatma saatlerinin AYARLANAMAMASI —
+// bağlantı biçimi bunu desteklemiyor, takvimin kendi varsayılanı geçerli olur
+// (tüm gün etkinliklerde Google varsayılanı o sabah 09:00, yani iki
+// alarmımızdan biri kendiliğinden geliyor; "bir gün önce" olan gitmiş oluyor).
+function googleTakvimUrl(k) {
+  const bas = k.date.replace(/-/g, '');
+  const b = new Date(k.date + 'T12:00:00');
+  b.setDate(b.getDate() + 1);
+  const bit = cellDate(b.getFullYear(), b.getMonth(), b.getDate()).replace(/-/g, '');
+  const q = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: k.ad + ' — ' + k.etiketler,
+    dates: bas + '/' + bit,           // tüm gün; bitiş günü dahil değil
+    details: "Keeper's Log planı"
+  });
+  return 'https://calendar.google.com/calendar/render?' + q.toString();
+}
+
+function googleTakvimAc(k) {
+  window.open(googleTakvimUrl(k), '_blank', 'noopener');
 }
 
 function icsIndir(kayitlar) {
